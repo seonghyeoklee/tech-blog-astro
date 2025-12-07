@@ -1,0 +1,116 @@
+---
+title: 'Kotlin + Spring Boot 시작하기'
+description: 'Mermaid와 코드 하이라이팅 테스트를 위한 샘플 포스트'
+pubDate: 'Dec 07 2024'
+heroImage: '../../assets/blog-placeholder-2.jpg'
+tags: ['Kotlin', 'Spring']
+---
+
+## Spring Boot 아키텍처
+
+<pre class="mermaid">
+{`flowchart TB
+    Client[Client] --> Controller
+    Controller --> Service
+    Service --> Repository
+    Repository --> DB[(Database)]
+
+    subgraph Spring Boot
+        Controller
+        Service
+        Repository
+    end`}
+</pre>
+
+## Kotlin 코드 예시
+
+### Controller
+
+```kotlin
+@RestController
+@RequestMapping("/api/users")
+class UserController(
+    private val userService: UserService
+) {
+    @GetMapping("/{id}")
+    fun getUser(@PathVariable id: Long): ResponseEntity<UserDto> {
+        return userService.findById(id)
+            ?.let { ResponseEntity.ok(it) }
+            ?: ResponseEntity.notFound().build()
+    }
+
+    @PostMapping
+    fun createUser(@RequestBody request: CreateUserRequest): ResponseEntity<UserDto> {
+        val user = userService.create(request)
+        return ResponseEntity.status(HttpStatus.CREATED).body(user)
+    }
+}
+```
+
+### Service
+
+```kotlin
+@Service
+@Transactional(readOnly = true)
+class UserService(
+    private val userRepository: UserRepository
+) {
+    fun findById(id: Long): UserDto? {
+        return userRepository.findByIdOrNull(id)?.toDto()
+    }
+
+    @Transactional
+    fun create(request: CreateUserRequest): UserDto {
+        val user = User(
+            name = request.name,
+            email = request.email
+        )
+        return userRepository.save(user).toDto()
+    }
+}
+```
+
+### Entity
+
+```kotlin
+@Entity
+@Table(name = "users")
+class User(
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    val id: Long = 0,
+
+    @Column(nullable = false)
+    var name: String,
+
+    @Column(nullable = false, unique = true)
+    var email: String,
+
+    @CreatedDate
+    val createdAt: LocalDateTime = LocalDateTime.now()
+)
+```
+
+## 시퀀스 다이어그램
+
+<pre class="mermaid">
+{`sequenceDiagram
+    participant C as Client
+    participant Ctrl as Controller
+    participant Svc as Service
+    participant Repo as Repository
+    participant DB as Database
+
+    C->>Ctrl: POST /api/users
+    Ctrl->>Svc: create(request)
+    Svc->>Repo: save(user)
+    Repo->>DB: INSERT
+    DB-->>Repo: user entity
+    Repo-->>Svc: user
+    Svc-->>Ctrl: UserDto
+    Ctrl-->>C: 201 Created`}
+</pre>
+
+## 마무리
+
+이 포스트는 Mermaid 다이어그램과 코드 하이라이팅이 잘 동작하는지 테스트하기 위한 샘플입니다.

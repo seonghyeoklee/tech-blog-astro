@@ -14,6 +14,15 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 <html lang="en">
 	<head>
 		<BaseHead title={title} description={description} />
+		<script type="module">
+			import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+			const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+			mermaid.initialize({
+				startOnLoad: true,
+				theme: isDark ? 'dark' : 'default'
+			});
+		</script>
 		<style>
 			main {
 				width: calc(100% - 2em);
@@ -30,7 +39,7 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 				box-shadow: var(--box-shadow);
 			}
 			.prose {
-				width: 720px;
+				width: 960px;
 				max-width: calc(100% - 2em);
 				margin: auto;
 				padding: 1em;
