@@ -1,0 +1,116 @@
+---
+---
+
+<div class="search-container">
+  <button id="search-btn" class="search-btn" aria-label="검색">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"></circle>
+      <path d="m21 21-4.3-4.3"></path>
+    </svg>
+  </button>
+</div>
+
+<div id="search-modal" class="search-modal">
+  <div class="search-modal-content">
+    <div id="search"></div>
+  </div>
+</div>
+
+<style>
+  .search-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5em;
+    color: inherit;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+  }
+  .search-btn:hover {
+    transform: scale(1.1);
+  }
+  .search-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 10vh;
+  }
+  .search-modal.active {
+    display: flex;
+  }
+  .search-modal-content {
+    background: var(--header-bg, white);
+    border-radius: 12px;
+    padding: 1.5em;
+    width: 90%;
+    max-width: 600px;
+    max-height: 70vh;
+    overflow: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  }
+</style>
+
+<link href="https://cdn.jsdelivr.net/npm/@pagefind/default-ui@latest/css/ui.css" rel="stylesheet">
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const searchBtn = document.getElementById('search-btn');
+    const modal = document.getElementById('search-modal');
+    let pagefindLoaded = false;
+
+    async function loadPagefind() {
+      if (pagefindLoaded) return;
+
+      try {
+        const { PagefindUI } = await import('https://cdn.jsdelivr.net/npm/@pagefind/default-ui@latest/pagefind-ui.js');
+        new PagefindUI({
+          element: "#search",
+          showSubResults: true,
+          showImages: false,
+          translations: {
+            placeholder: "검색어를 입력하세요...",
+            zero_results: "검색 결과가 없습니다",
+          }
+        });
+        pagefindLoaded = true;
+      } catch (e) {
+        console.log('Pagefind not available in dev mode');
+        const searchDiv = document.getElementById('search');
+        if (searchDiv) {
+          searchDiv.innerHTML = '<p style="color: rgb(var(--gray));">검색 기능은 빌드 후 사용 가능합니다.</p>';
+        }
+      }
+    }
+
+    searchBtn?.addEventListener('click', async () => {
+      modal?.classList.add('active');
+      await loadPagefind();
+      const input = document.querySelector('#search input') as HTMLInputElement;
+      input?.focus();
+    });
+
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        modal?.classList.remove('active');
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchBtn?.click();
+      }
+    });
+  });
+</script>

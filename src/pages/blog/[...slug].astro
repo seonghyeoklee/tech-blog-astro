@@ -1,20 +1,36 @@
 ---
 import { type CollectionEntry, getCollection, render } from 'astro:content';
 import BlogPost from '../../layouts/BlogPost.astro';
+import TableOfContents from '../../components/TableOfContents.astro';
+import ReadingTime from '../../components/ReadingTime.astro';
+import PostNavigation from '../../components/PostNavigation.astro';
 
 export async function getStaticPaths() {
 	const posts = await getCollection('blog');
-	return posts.map((post) => ({
+	const sortedPosts = posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+
+	return sortedPosts.map((post, index) => ({
 		params: { slug: post.id },
-		props: post,
+		props: {
+			post,
+			prevPost: sortedPosts[index + 1] ? { id: sortedPosts[index + 1].id, title: sortedPosts[index + 1].data.title } : null,
+			nextPost: sortedPosts[index - 1] ? { id: sortedPosts[index - 1].id, title: sortedPosts[index - 1].data.title } : null,
+		},
 	}));
 }
-type Props = CollectionEntry<'blog'>;
 
-const post = Astro.props;
-const { Content } = await render(post);
+type Props = {
+	post: CollectionEntry<'blog'>;
+	prevPost: { id: string; title: string } | null;
+	nextPost: { id: string; title: string } | null;
+};
+
+const { post, prevPost, nextPost } = Astro.props;
+const { Content, headings } = await render(post);
 ---
 
-<BlogPost {...post.data}>
+<BlogPost {...post.data} headings={headings} rawContent={post.body || ''}>
+	<TableOfContents headings={headings} />
 	<Content />
+	<PostNavigation prevPost={prevPost} nextPost={nextPost} />
 </BlogPost>

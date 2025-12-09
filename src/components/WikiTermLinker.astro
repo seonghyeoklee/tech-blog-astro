@@ -1,0 +1,116 @@
+---
+import { getCollection } from 'astro:content';
+
+const wiki = await getCollection('wiki');
+const terms = wiki.map(w => ({
+	term: w.data.term,
+	aliases: w.data.aliases || [],
+	slug: w.id,
+	summary: w.data.summary,
+}));
+---
+
+<script define:vars={{ terms }}>
+	document.addEventListener('DOMContentLoaded', () => {
+		const content = document.querySelector('.prose');
+		if (!content) return;
+
+		// 모든 용어와 별칭을 하나의 맵으로
+		const termMap = new Map();
+		terms.forEach(t => {
+			termMap.set(t.term.toLowerCase(), t);
+			t.aliases.forEach(alias => {
+				termMap.set(alias.toLowerCase(), t);
+			});
+		});
+
+		// 긴 용어부터 매칭 (더 긴 것이 우선)
+		const allTerms = Array.from(termMap.keys()).sort((a, b) => b.length - a.length);
+		if (allTerms.length === 0) return;
+
+		// 정규식 패턴 생성 (특수문자 이스케이프)
+		const pattern = new RegExp(
+			'\\b(' + allTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b',
+			'gi'
+		);
+
+		// 텍스트 노드 찾아서 치환
+		const walker = document.createTreeWalker(
+			content,
+			NodeFilter.SHOW_TEXT,
+			{
+				acceptNode: (node) => {
+					// 이미 링크 안에 있는 텍스트는 제외
+					const parent = node.parentElement;
+					if (!parent) return NodeFilter.FILTER_REJECT;
+					if (parent.tagName === 'A' || parent.tagName === 'CODE' || parent.tagName === 'PRE') {
+						return NodeFilter.FILTER_REJECT;
+					}
+					// 헤딩 내부도 제외
+					if (parent.closest('h1, h2, h3, h4, h5, h6')) {
+						return NodeFilter.FILTER_REJECT;
+					}
+					return NodeFilter.FILTER_ACCEPT;
+				}
+			}
+		);
+
+		const nodesToProcess = [];
+		let node;
+		while ((node = walker.nextNode())) {
+			if (pattern.test(node.textContent || '')) {
+				nodesToProcess.push(node);
+			}
+			pattern.lastIndex = 0;
+		}
+
+		// 각 텍스트 노드에서 첫 번째 매칭만 링크로 변환
+		const linkedTerms = new Set();
+
+		nodesToProcess.forEach(textNode => {
+			const text = textNode.textContent || '';
+			let match;
+			pattern.lastIndex = 0;
+
+			while ((match = pattern.exec(text)) !== null) {
+				const matchedText = match[0];
+				const termData = termMap.get(matchedText.toLowerCase());
+
+				if (termData && !linkedTerms.has(termData.slug)) {
+					linkedTerms.add(termData.slug);
+
+					const before = text.substring(0, match.index);
+					const after = text.substring(match.index + matchedText.length);
+
+					const beforeNode = document.createTextNode(before);
+					const link = document.createElement('a');
+					link.href = `/wiki/${termData.slug}`;
+					link.textContent = matchedText;
+					link.className = 'wiki-term-link';
+					link.title = termData.summary;
+
+					const parent = textNode.parentNode;
+					if (parent) {
+						parent.insertBefore(beforeNode, textNode);
+						parent.insertBefore(link, textNode);
+						textNode.textContent = after;
+					}
+					break;
+				}
+			}
+		});
+	});
+</script>
+
+<style is:global>
+	.wiki-term-link {
+		color: var(--accent);
+		text-decoration: underline;
+		text-decoration-style: dotted;
+		text-underline-offset: 3px;
+		cursor: help;
+	}
+	.wiki-term-link:hover {
+		text-decoration-style: solid;
+	}
+</style>

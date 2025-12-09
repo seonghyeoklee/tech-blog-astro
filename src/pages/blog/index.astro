@@ -11,7 +11,7 @@ const posts = (await getCollection('blog')).sort(
 );
 
 // 모든 태그 추출
-const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture'];
+const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL', 'JPA', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS'];
 ---
 
 <!doctype html>
@@ -86,6 +86,38 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture'];
 			.filter-btn[data-tag="Architecture"].active {
 				background: #3498db;
 				border-color: #3498db;
+			}
+			.filter-btn[data-tag="Database"].active {
+				background: #336791;
+				border-color: #336791;
+			}
+			.filter-btn[data-tag="MySQL"].active {
+				background: #4479A1;
+				border-color: #4479A1;
+			}
+			.filter-btn[data-tag="JPA"].active {
+				background: #59666C;
+				border-color: #59666C;
+			}
+			.filter-btn[data-tag="Redis"].active {
+				background: #DC382D;
+				border-color: #DC382D;
+			}
+			.filter-btn[data-tag="Kafka"].active {
+				background: #231F20;
+				border-color: #231F20;
+			}
+			.filter-btn[data-tag="Docker"].active {
+				background: #2496ED;
+				border-color: #2496ED;
+			}
+			.filter-btn[data-tag="Kubernetes"].active {
+				background: #326CE5;
+				border-color: #326CE5;
+			}
+			.filter-btn[data-tag="AWS"].active {
+				background: #FF9900;
+				border-color: #FF9900;
 			}
 
 			/* 글 목록 */
@@ -165,6 +197,38 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture'];
 			}
 			.tag-architecture {
 				background-color: #3498db;
+				color: white;
+			}
+			.tag-database {
+				background-color: #336791;
+				color: white;
+			}
+			.tag-mysql {
+				background-color: #4479A1;
+				color: white;
+			}
+			.tag-jpa {
+				background-color: #59666C;
+				color: white;
+			}
+			.tag-redis {
+				background-color: #DC382D;
+				color: white;
+			}
+			.tag-kafka {
+				background-color: #231F20;
+				color: white;
+			}
+			.tag-docker {
+				background-color: #2496ED;
+				color: white;
+			}
+			.tag-kubernetes {
+				background-color: #326CE5;
+				color: white;
+			}
+			.tag-aws {
+				background-color: #FF9900;
 				color: white;
 			}
 

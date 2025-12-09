@@ -1,0 +1,149 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { SITE_TITLE } from '../../consts';
+
+export async function getStaticPaths() {
+	const wiki = await getCollection('wiki');
+	return wiki.map((entry) => ({
+		params: { slug: entry.id },
+		props: entry,
+	}));
+}
+
+const entry = Astro.props;
+const { Content } = await render(entry);
+
+const categoryNames: Record<string, string> = {
+	database: 'Database',
+	java: 'Java',
+	spring: 'Spring',
+	architecture: 'Architecture',
+	infra: 'Infra',
+	general: 'General',
+};
+---
+
+<html lang="ko">
+	<head>
+		<BaseHead title={`${entry.data.term} - Wiki - ${SITE_TITLE}`} description={entry.data.summary} />
+		<style>
+			main {
+				width: 760px;
+				max-width: calc(100% - 2em);
+				margin: auto;
+				padding: 2em 1em;
+			}
+			.breadcrumb {
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+				margin-bottom: 1.5em;
+			}
+			.breadcrumb a {
+				color: rgb(var(--gray));
+				text-decoration: none;
+			}
+			.breadcrumb a:hover {
+				color: var(--accent);
+			}
+			.term-header {
+				margin-bottom: 2em;
+			}
+			.term-header h1 {
+				margin: 0 0 0.5em 0;
+				font-size: 2em;
+			}
+			.term-meta {
+				display: flex;
+				align-items: center;
+				gap: 1em;
+				flex-wrap: wrap;
+			}
+			.category-badge {
+				display: inline-block;
+				padding: 0.25em 0.75em;
+				background: var(--accent);
+				color: white;
+				border-radius: 4px;
+				font-size: 0.85em;
+				font-weight: 500;
+			}
+			.aliases {
+				color: rgb(var(--gray));
+				font-size: 0.9em;
+			}
+			.summary {
+				background: rgb(var(--gray-light), 0.3);
+				padding: 1em 1.25em;
+				border-radius: 8px;
+				margin-bottom: 2em;
+				font-size: 1.05em;
+				line-height: 1.6;
+				border-left: 4px solid var(--accent);
+			}
+			.content {
+				line-height: 1.8;
+			}
+			.content h2 {
+				margin-top: 2em;
+				margin-bottom: 0.75em;
+				font-size: 1.4em;
+				border-bottom: 1px solid rgb(var(--gray-light));
+				padding-bottom: 0.3em;
+			}
+			.content ul, .content ol {
+				padding-left: 1.5em;
+			}
+			.content li {
+				margin: 0.5em 0;
+			}
+			.content a {
+				color: var(--accent);
+			}
+			.content table {
+				width: 100%;
+				border-collapse: collapse;
+				margin: 1em 0;
+			}
+			.content th, .content td {
+				border: 1px solid rgb(var(--gray-light));
+				padding: 0.5em 0.75em;
+				text-align: left;
+			}
+			.content th {
+				background: rgb(var(--gray-light), 0.3);
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<nav class="breadcrumb">
+				<a href="/wiki">Wiki</a> / {entry.data.term}
+			</nav>
+
+			<header class="term-header">
+				<h1>{entry.data.term}</h1>
+				<div class="term-meta">
+					<span class="category-badge">{categoryNames[entry.data.category]}</span>
+					{entry.data.aliases && entry.data.aliases.length > 0 && (
+						<span class="aliases">
+							다른 이름: {entry.data.aliases.join(', ')}
+						</span>
+					)}
+				</div>
+			</header>
+
+			<div class="summary">
+				{entry.data.summary}
+			</div>
+
+			<article class="content">
+				<Content />
+			</article>
+		</main>
+		<Footer />
+	</body>
+</html>

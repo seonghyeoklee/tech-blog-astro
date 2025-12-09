@@ -1,0 +1,26 @@
+---
+interface Props {
+  content: string;
+}
+
+const { content } = Astro.props;
+
+// 한글 기준 분당 약 500자, 영어 기준 약 200단어
+const koreanChars = (content.match(/[가-힣]/g) || []).length;
+const englishWords = (content.match(/[a-zA-Z]+/g) || []).length;
+
+const koreanMinutes = koreanChars / 500;
+const englishMinutes = englishWords / 200;
+
+const totalMinutes = Math.ceil(koreanMinutes + englishMinutes);
+const readingTime = Math.max(1, totalMinutes);
+---
+
+<span class="reading-time">약 {readingTime}분</span>
+
+<style>
+  .reading-time {
+    color: rgb(var(--gray));
+    font-size: 0.9em;
+  }
+</style>

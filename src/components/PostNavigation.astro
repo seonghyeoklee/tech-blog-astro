@@ -1,0 +1,82 @@
+---
+interface Props {
+  prevPost?: { id: string; title: string } | null;
+  nextPost?: { id: string; title: string } | null;
+}
+
+const { prevPost, nextPost } = Astro.props;
+---
+
+{(prevPost || nextPost) && (
+  <nav class="post-navigation">
+    <div class="nav-item prev">
+      {prevPost && (
+        <a href={`/blog/${prevPost.id}/`}>
+          <span class="nav-label">이전 글</span>
+          <span class="nav-title">{prevPost.title}</span>
+        </a>
+      )}
+    </div>
+    <div class="nav-item next">
+      {nextPost && (
+        <a href={`/blog/${nextPost.id}/`}>
+          <span class="nav-label">다음 글</span>
+          <span class="nav-title">{nextPost.title}</span>
+        </a>
+      )}
+    </div>
+  </nav>
+)}
+
+<style>
+  .post-navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 1em;
+    margin-top: 3em;
+    padding-top: 2em;
+    border-top: 1px solid rgb(var(--gray-light));
+  }
+  .nav-item {
+    flex: 1;
+    max-width: 45%;
+  }
+  .nav-item.next {
+    text-align: right;
+  }
+  .nav-item a {
+    display: block;
+    padding: 1em;
+    background: rgb(var(--gray-light), 0.3);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background 0.2s ease;
+  }
+  .nav-item a:hover {
+    background: rgb(var(--gray-light), 0.5);
+  }
+  .nav-label {
+    display: block;
+    font-size: 0.8em;
+    color: rgb(var(--gray));
+    margin-bottom: 0.3em;
+  }
+  .nav-title {
+    display: block;
+    color: rgb(var(--gray-dark));
+    font-weight: 500;
+    font-size: 0.95em;
+    line-height: 1.4;
+  }
+  @media (max-width: 600px) {
+    .post-navigation {
+      flex-direction: column;
+    }
+    .nav-item {
+      max-width: 100%;
+    }
+    .nav-item.next {
+      text-align: left;
+    }
+  }
+</style>

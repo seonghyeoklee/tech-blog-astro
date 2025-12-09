@@ -1,0 +1,170 @@
+---
+import { getCollection } from 'astro:content';
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { SITE_TITLE } from '../../consts';
+
+const allWiki = await getCollection('wiki');
+
+const categories = {
+	database: { name: 'Database', items: [] as typeof allWiki },
+	java: { name: 'Java', items: [] as typeof allWiki },
+	spring: { name: 'Spring', items: [] as typeof allWiki },
+	architecture: { name: 'Architecture', items: [] as typeof allWiki },
+	infra: { name: 'Infra', items: [] as typeof allWiki },
+	general: { name: 'General', items: [] as typeof allWiki },
+};
+
+allWiki.forEach(wiki => {
+	categories[wiki.data.category].items.push(wiki);
+});
+
+Object.values(categories).forEach(cat => {
+	cat.items.sort((a, b) => a.data.term.localeCompare(b.data.term, 'ko'));
+});
+---
+
+<html lang="ko">
+	<head>
+		<BaseHead title={`Wiki - ${SITE_TITLE}`} description="개발 용어 사전" />
+		<style>
+			main {
+				width: 960px;
+				max-width: calc(100% - 2em);
+				margin: auto;
+				padding: 2em 1em;
+			}
+			h1 {
+				margin-bottom: 0.5em;
+			}
+			.description {
+				color: rgb(var(--gray));
+				margin-bottom: 2em;
+			}
+			.search-box {
+				width: 100%;
+				padding: 0.75em 1em;
+				font-size: 1em;
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				margin-bottom: 2em;
+				background: var(--card-bg, white);
+				color: rgb(var(--gray-dark));
+			}
+			.search-box:focus {
+				outline: none;
+				border-color: var(--accent);
+			}
+			.category {
+				margin-bottom: 2em;
+			}
+			.category h2 {
+				font-size: 1.2em;
+				margin-bottom: 0.75em;
+				padding-bottom: 0.5em;
+				border-bottom: 2px solid rgb(var(--gray-light));
+			}
+			.wiki-list {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+				gap: 1em;
+			}
+			.wiki-item {
+				background: var(--card-bg, white);
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 8px;
+				padding: 1em;
+				transition: border-color 0.2s ease, box-shadow 0.2s ease;
+			}
+			.wiki-item:hover {
+				border-color: var(--accent);
+				box-shadow: 0 2px 8px rgba(var(--gray), 0.1);
+			}
+			.wiki-item a {
+				text-decoration: none;
+				color: inherit;
+				display: block;
+			}
+			.wiki-term {
+				font-weight: 600;
+				color: rgb(var(--black));
+				margin-bottom: 0.5em;
+			}
+			.wiki-summary {
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+				line-height: 1.5;
+			}
+			.wiki-aliases {
+				font-size: 0.8em;
+				color: rgb(var(--gray-light));
+				margin-top: 0.5em;
+			}
+			.hidden {
+				display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<h1>Wiki</h1>
+			<p class="description">개발 용어 사전입니다. 블로그 글에서 용어를 클릭하면 이곳으로 연결됩니다.</p>
+
+			<input
+				type="text"
+				class="search-box"
+				placeholder="용어 검색..."
+				id="wiki-search"
+			/>
+
+			{Object.entries(categories).map(([key, category]) => (
+				category.items.length > 0 && (
+					<section class="category" data-category={key}>
+						<h2>{category.name}</h2>
+						<ul class="wiki-list">
+							{category.items.map(wiki => (
+								<li class="wiki-item" data-term={wiki.data.term.toLowerCase()} data-aliases={wiki.data.aliases?.join(',').toLowerCase() || ''}>
+									<a href={`/wiki/${wiki.id}`}>
+										<div class="wiki-term">{wiki.data.term}</div>
+										<div class="wiki-summary">{wiki.data.summary}</div>
+										{wiki.data.aliases && wiki.data.aliases.length > 0 && (
+											<div class="wiki-aliases">
+												{wiki.data.aliases.join(', ')}
+											</div>
+										)}
+									</a>
+								</li>
+							))}
+						</ul>
+					</section>
+				)
+			))}
+		</main>
+		<Footer />
+
+		<script>
+			const searchInput = document.getElementById('wiki-search') as HTMLInputElement;
+			const wikiItems = document.querySelectorAll('.wiki-item');
+
+			searchInput?.addEventListener('input', (e) => {
+				const query = (e.target as HTMLInputElement).value.toLowerCase();
+
+				wikiItems.forEach(item => {
+					const term = item.getAttribute('data-term') || '';
+					const aliases = item.getAttribute('data-aliases') || '';
+
+					if (term.includes(query) || aliases.includes(query)) {
+						item.classList.remove('hidden');
+					} else {
+						item.classList.add('hidden');
+					}
+				});
+			});
+		</script>
+	</body>
+</html>

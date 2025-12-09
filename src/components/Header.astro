@@ -2,6 +2,7 @@
 import { SITE_TITLE } from '../consts';
 import HeaderLink from './HeaderLink.astro';
 import ThemeToggle from './ThemeToggle.astro';
+import Search from './Search.astro';
 ---
 
 <header>
@@ -9,9 +10,11 @@ import ThemeToggle from './ThemeToggle.astro';
 		<h2><a href="/">{SITE_TITLE}</a></h2>
 		<div class="internal-links">
 			<HeaderLink href="/blog">Blog</HeaderLink>
+			<HeaderLink href="/wiki">Wiki</HeaderLink>
 			<HeaderLink href="/about">About</HeaderLink>
 		</div>
 		<div class="right-section">
+			<Search />
 			<a href="https://github.com/seonghyeoklee" target="_blank" class="github-link" aria-label="GitHub">
 				<svg viewBox="0 0 16 16" aria-hidden="true" width="24" height="24"
 					><path
@@ -75,5 +78,6 @@ import ThemeToggle from './ThemeToggle.astro';
 	.internal-links {
 		display: flex;
 		align-items: center;
+		gap: 0.5em;
 	}
 </style>
