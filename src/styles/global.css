@@ -20,6 +20,7 @@
 	--text-color: rgb(var(--gray-dark));
 	--header-bg: white;
 	--code-bg: rgb(var(--gray-light));
+	--card-bg: #fff;
 }
 
 [data-theme="dark"] {
@@ -35,6 +36,7 @@
 	--text-color: rgb(var(--gray-dark));
 	--header-bg: #1a1b26;
 	--code-bg: #24263a;
+	--card-bg: #24263a;
 }
 @font-face {
 	font-family: "Atkinson";
@@ -108,7 +110,19 @@ p {
 	margin-bottom: 1em;
 }
 .prose p {
-	margin-bottom: 2em;
+	margin-bottom: 1.25em;
+}
+.prose h2 {
+	margin-top: 1.75em;
+	margin-bottom: 0.75em;
+}
+.prose h3 {
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
+}
+.prose h2:first-child,
+.prose h3:first-child {
+	margin-top: 0;
 }
 textarea {
 	width: 100%;
@@ -119,6 +133,22 @@ input {
 }
 table {
 	width: 100%;
+	margin: 1.5em 0;
+	border-collapse: collapse;
+	font-size: 0.95em;
+}
+table th,
+table td {
+	padding: 0.75em 1em;
+	border: 1px solid rgb(var(--gray-light));
+	text-align: left;
+}
+table th {
+	background: rgba(var(--gray-light), 0.3);
+	font-weight: 600;
+}
+table tr:hover {
+	background: rgba(var(--gray-light), 0.15);
 }
 img {
 	max-width: 100%;

@@ -4,6 +4,7 @@ import BlogPost from '../../layouts/BlogPost.astro';
 import TableOfContents from '../../components/TableOfContents.astro';
 import ReadingTime from '../../components/ReadingTime.astro';
 import PostNavigation from '../../components/PostNavigation.astro';
+import Comments from '../../components/Comments.astro';
 
 export async function getStaticPaths() {
 	const posts = await getCollection('blog');
@@ -33,4 +34,5 @@ const { Content, headings } = await render(post);
 	<TableOfContents headings={headings} />
 	<Content />
 	<PostNavigation prevPost={prevPost} nextPost={nextPost} />
+	<Comments />
 </BlogPost>

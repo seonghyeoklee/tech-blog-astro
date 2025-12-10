@@ -1,0 +1,75 @@
+---
+// giscus 댓글 컴포넌트
+---
+
+<section class="comments">
+  <h3 class="comments-title">댓글</h3>
+  <div class="giscus"></div>
+</section>
+
+<script>
+  function loadGiscus() {
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark'
+      ? 'dark'
+      : 'light';
+
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.setAttribute('data-repo', 'seonghyeoklee/tech-blog-astro');
+    script.setAttribute('data-repo-id', 'R_kgDOQkKoPg');
+    script.setAttribute('data-category', 'General');
+    script.setAttribute('data-category-id', 'DIC_kwDOQkKoPs4Cznnv');
+    script.setAttribute('data-mapping', 'pathname');
+    script.setAttribute('data-strict', '0');
+    script.setAttribute('data-reactions-enabled', '1');
+    script.setAttribute('data-emit-metadata', '0');
+    script.setAttribute('data-input-position', 'bottom');
+    script.setAttribute('data-theme', theme);
+    script.setAttribute('data-lang', 'ko');
+    script.setAttribute('crossorigin', 'anonymous');
+    script.async = true;
+
+    document.querySelector('.giscus')?.appendChild(script);
+  }
+
+  // 테마 변경 시 giscus 테마도 변경
+  function updateGiscusTheme() {
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark'
+      ? 'dark'
+      : 'light';
+
+    const iframe = document.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
+    if (iframe) {
+      iframe.contentWindow?.postMessage(
+        { giscus: { setConfig: { theme } } },
+        'https://giscus.app'
+      );
+    }
+  }
+
+  // 테마 변경 감지
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.attributeName === 'data-theme') {
+        updateGiscusTheme();
+      }
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadGiscus();
+    observer.observe(document.documentElement, { attributes: true });
+  });
+</script>
+
+<style>
+  .comments {
+    margin-top: 3em;
+    padding-top: 2em;
+    border-top: 1px solid rgb(var(--gray-light));
+  }
+  .comments-title {
+    margin-bottom: 1em;
+    font-size: 1.2em;
+  }
+</style>

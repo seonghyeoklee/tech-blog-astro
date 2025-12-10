@@ -1,48 +1,331 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
+import FormattedDate from '../components/FormattedDate.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+
+const posts = (await getCollection('blog'))
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+	.slice(0, 5);
+
+const announcements = [
+	{ date: '2025-01-05', content: '블로그를 시작했습니다. CS 기초부터 차근차근 정리해나갈 예정입니다.' },
+];
+
+const docs = [
+	{ name: 'Java', url: 'https://docs.oracle.com/en/java/', icon: 'java/java-original' },
+	{ name: 'Spring', url: 'https://docs.spring.io/spring-framework/reference/', icon: 'spring/spring-original' },
+	{ name: 'Spring Boot', url: 'https://docs.spring.io/spring-boot/docs/current/reference/html/', icon: 'spring/spring-original' },
+	{ name: 'JPA/Hibernate', url: 'https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html', icon: 'hibernate/hibernate-original' },
+	{ name: 'MySQL', url: 'https://dev.mysql.com/doc/refman/8.0/en/', icon: 'mysql/mysql-original' },
+	{ name: 'Redis', url: 'https://redis.io/docs/', icon: 'redis/redis-original' },
+	{ name: 'Kafka', url: 'https://kafka.apache.org/documentation/', icon: 'apachekafka/apachekafka-original' },
+	{ name: 'Docker', url: 'https://docs.docker.com/', icon: 'docker/docker-original' },
+	{ name: 'Kubernetes', url: 'https://kubernetes.io/docs/home/', icon: 'kubernetes/kubernetes-original' },
+	{ name: 'AWS', url: 'https://docs.aws.amazon.com/', icon: 'amazonwebservices/amazonwebservices-plain-wordmark' },
+	{ name: 'JUnit 5', url: 'https://junit.org/junit5/docs/current/user-guide/', icon: 'junit/junit-original' },
+	{ name: 'Gradle', url: 'https://docs.gradle.org/current/userguide/userguide.html', icon: 'gradle/gradle-original' },
+];
+
+const resources = [
+	{ name: 'Baeldung', url: 'https://www.baeldung.com/', desc: 'Java/Spring 튜토리얼' },
+	{ name: 'Martin Fowler', url: 'https://martinfowler.com/', desc: '아키텍처/설계 패턴' },
+	{ name: 'Refactoring Guru', url: 'https://refactoring.guru/', desc: '디자인 패턴/리팩토링' },
+	{ name: 'Java Design Patterns', url: 'https://java-design-patterns.com/', desc: 'Java 디자인 패턴 예제' },
+	{ name: 'Spring Guides', url: 'https://spring.io/guides', desc: 'Spring 공식 가이드' },
+	{ name: 'DZone', url: 'https://dzone.com/java', desc: 'Java 개발자 커뮤니티' },
+	{ name: 'InfoQ', url: 'https://www.infoq.com/', desc: '소프트웨어 개발 트렌드' },
+	{ name: 'High Scalability', url: 'http://highscalability.com/', desc: '대규모 시스템 아키텍처' },
+];
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+		<style>
+			main {
+				width: 960px;
+				max-width: calc(100% - 2em);
+				margin: auto;
+				padding: 2em 1em 4em;
+			}
+
+			h1 {
+				margin-bottom: 0.5em;
+			}
+			.description {
+				color: rgb(var(--gray));
+				margin-bottom: 2em;
+			}
+
+			/* Grid Layout */
+			.grid {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1.5em;
+				margin-bottom: 1.5em;
+			}
+			@media (max-width: 768px) {
+				.grid {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			/* Section Cards */
+			section {
+				background: var(--card-bg);
+				border: 1px solid rgba(var(--gray-light), 0.8);
+				border-radius: 16px;
+				padding: 1.75em;
+				transition: transform 0.2s ease, box-shadow 0.2s ease;
+			}
+			section:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 8px 24px rgba(var(--gray), 0.1);
+			}
+			section h2 {
+				font-size: 0.85em;
+				font-weight: 600;
+				margin: 0 0 1em;
+				padding-bottom: 0.6em;
+				border-bottom: 1px solid rgba(var(--gray-light), 0.6);
+				display: flex;
+				align-items: center;
+				gap: 0.4em;
+				color: rgb(var(--gray));
+				letter-spacing: 0.03em;
+				text-transform: uppercase;
+			}
+
+			/* Posts List */
+			.post-list {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.post-item {
+				padding: 0.875em 0;
+				border-bottom: 1px solid rgba(var(--gray-light), 0.4);
+				transition: padding-left 0.2s ease;
+			}
+			.post-item:last-child {
+				border-bottom: none;
+				padding-bottom: 0;
+			}
+			.post-item:first-child {
+				padding-top: 0;
+			}
+			.post-item:hover {
+				padding-left: 0.5em;
+			}
+			.post-item a {
+				text-decoration: none;
+				color: rgb(var(--black));
+				font-weight: 500;
+				font-size: 0.95em;
+				line-height: 1.4;
+				transition: color 0.2s ease;
+			}
+			.post-item a:hover {
+				color: var(--accent);
+			}
+			.post-date {
+				font-size: 0.8em;
+				color: rgb(var(--gray));
+				margin-top: 0.35em;
+			}
+			.more-link {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.3em;
+				margin-top: 1.25em;
+				padding: 0.5em 1em;
+				color: var(--accent);
+				text-decoration: none;
+				font-size: 0.85em;
+				font-weight: 500;
+				border-radius: 20px;
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.08);
+				transition: all 0.2s ease;
+			}
+			.more-link:hover {
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.15);
+				transform: translateX(3px);
+			}
+
+			/* Announcements */
+			.announcement-list {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.announcement-item {
+				padding: 0.75em 1em;
+				font-size: 0.9em;
+				line-height: 1.6;
+				background: rgba(var(--gray-light), 0.3);
+				border-radius: 10px;
+				margin-bottom: 0.75em;
+			}
+			.announcement-item:last-child {
+				margin-bottom: 0;
+			}
+			.announcement-date {
+				display: block;
+				font-size: 0.75em;
+				color: rgb(var(--gray));
+				margin-bottom: 0.3em;
+				font-weight: 500;
+			}
+
+			/* Docs Grid */
+			.docs-grid {
+				display: grid;
+				grid-template-columns: repeat(6, 1fr);
+				gap: 1em;
+			}
+			@media (max-width: 768px) {
+				.docs-grid {
+					grid-template-columns: repeat(3, 1fr);
+					gap: 0.75em;
+				}
+			}
+			.doc-link {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 1.25em 0.75em;
+				background: rgba(var(--gray-light), 0.2);
+				border: 1px solid transparent;
+				border-radius: 12px;
+				text-decoration: none;
+				color: rgb(var(--gray-dark));
+				font-size: 0.8em;
+				font-weight: 500;
+				transition: all 0.25s ease;
+			}
+			.doc-link:hover {
+				background: rgba(var(--gray-light), 0.4);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+				transform: translateY(-4px);
+				box-shadow: 0 6px 20px rgba(var(--gray), 0.12);
+			}
+			.doc-link:hover .doc-icon {
+				transform: scale(1.1);
+			}
+			.doc-icon {
+				width: 32px;
+				height: 32px;
+				margin-bottom: 0.6em;
+				transition: transform 0.25s ease;
+			}
+
+			/* Resources */
+			.resources-grid {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 1em;
+			}
+			@media (max-width: 960px) {
+				.resources-grid {
+					grid-template-columns: repeat(2, 1fr);
+				}
+			}
+			@media (max-width: 520px) {
+				.resources-grid {
+					grid-template-columns: 1fr;
+				}
+			}
+			.resource-card {
+				display: block;
+				padding: 1em 1.25em;
+				background: rgba(var(--gray-light), 0.2);
+				border-radius: 12px;
+				text-decoration: none;
+				transition: all 0.2s ease;
+			}
+			.resource-card:hover {
+				background: rgba(var(--gray-light), 0.4);
+				transform: translateX(4px);
+			}
+			.resource-name {
+				color: rgb(var(--black));
+				font-weight: 600;
+				font-size: 0.95em;
+				margin-bottom: 0.25em;
+			}
+			.resource-desc {
+				font-size: 0.8em;
+				color: rgb(var(--gray));
+				line-height: 1.4;
+			}
+
+			.full-width {
+				grid-column: 1 / -1;
+			}
+		</style>
 	</head>
 	<body>
 		<Header />
 		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This
-				template serves as a lightweight, minimally-styled starting point for anyone looking to build
-				a personal website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to
-				<a href="https://docs.astro.build/">read the docs</a>
-				or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out
-				<a href="https://github.com/Charca/astro-blog-template">astro-blog-template</a>
-				by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
+			<h1>shlee.dev</h1>
+			<p class="description">매일 조금씩, 개발 기록</p>
+
+			<div class="grid">
+				<section>
+					<h2>📝 최근 글</h2>
+					<ul class="post-list">
+						{posts.map((post) => (
+							<li class="post-item">
+								<a href={`/blog/${post.id}/`}>{post.data.title}</a>
+								<div class="post-date">
+									<FormattedDate date={post.data.pubDate} />
+								</div>
+							</li>
+						))}
+					</ul>
+					<a href="/blog" class="more-link">전체 글 보기 →</a>
+				</section>
+
+				<section>
+					<h2>📢 공지사항</h2>
+					<ul class="announcement-list">
+						{announcements.map((item) => (
+							<li class="announcement-item">
+								<span class="announcement-date">{item.date}</span>
+								{item.content}
+							</li>
+						))}
+					</ul>
+				</section>
+
+				<section class="full-width">
+					<h2>📚 공식 문서</h2>
+					<div class="docs-grid">
+						{docs.map((doc) => (
+							<a href={doc.url} target="_blank" rel="noopener" class="doc-link">
+								<img src={`https://cdn.jsdelivr.net/gh/devicons/devicon/icons/${doc.icon}.svg`} alt={doc.name} class="doc-icon" />
+								<span>{doc.name}</span>
+							</a>
+						))}
+					</div>
+				</section>
+
+				<section class="full-width">
+					<h2>🔗 추천 리소스</h2>
+					<div class="resources-grid">
+						{resources.map((res) => (
+							<a href={res.url} target="_blank" rel="noopener" class="resource-card">
+								<div class="resource-name">{res.name}</div>
+								<div class="resource-desc">{res.desc}</div>
+							</a>
+						))}
+					</div>
+				</section>
+			</div>
 		</main>
 		<Footer />
 	</body>

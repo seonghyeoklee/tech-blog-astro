@@ -1,7 +1,7 @@
 ---
 title: 'DB 트랜잭션 기본 - ACID와 격리 수준'
 description: '트랜잭션의 본질과 격리 수준별 동작 차이를 정리했습니다'
-pubDate: 'Dec 15 2024'
+pubDate: 'Jan 01 2025'
 tags: ['Database', 'MySQL']
 ---
 

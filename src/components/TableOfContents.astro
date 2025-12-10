@@ -32,20 +32,22 @@ const filteredHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
       display: block;
       position: fixed;
       top: 100px;
-      right: calc((100vw - 960px) / 2 - 280px);
+      right: calc((100vw - 960px) / 2 - 320px);
       width: 240px;
       max-height: calc(100vh - 150px);
       overflow-y: auto;
     }
     .toc {
-      padding: 1em;
-      border-left: 2px solid rgb(var(--gray-light));
+      padding: 1em 1.25em;
+      border-left: 2px solid rgba(var(--gray-light), 0.8);
+      background: transparent;
+      border-radius: 0;
     }
     .toc-title {
       margin: 0 0 0.75em 0;
-      font-size: 0.8em;
-      color: rgb(var(--gray));
-      font-weight: 600;
+      font-size: 0.85em;
+      color: rgb(var(--gray-dark));
+      font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
@@ -55,25 +57,32 @@ const filteredHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
       margin: 0;
     }
     .toc-item {
-      margin: 0.5em 0;
+      margin: 0.6em 0;
     }
     .toc-item a {
-      color: rgb(var(--gray));
+      color: rgb(var(--gray-dark));
       text-decoration: none;
-      font-size: 0.85em;
-      line-height: 1.4;
-      transition: color 0.2s ease;
+      font-size: 0.9em;
+      line-height: 1.5;
+      transition: color 0.2s ease, padding-left 0.2s ease;
       display: block;
+      opacity: 0.8;
     }
-    .toc-item a:hover,
+    .toc-item a:hover {
+      color: var(--accent);
+      opacity: 1;
+    }
     .toc-item a.active {
       color: var(--accent);
+      font-weight: 600;
+      opacity: 1;
+      padding-left: 0.5em;
     }
     .depth-3 {
-      padding-left: 0.8em;
+      padding-left: 1em;
     }
     .depth-3 a {
-      font-size: 0.8em;
+      font-size: 0.85em;
     }
   }
 </style>

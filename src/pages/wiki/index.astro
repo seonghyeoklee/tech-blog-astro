@@ -8,12 +8,12 @@ import { SITE_TITLE } from '../../consts';
 const allWiki = await getCollection('wiki');
 
 const categories = {
-	database: { name: 'Database', items: [] as typeof allWiki },
-	java: { name: 'Java', items: [] as typeof allWiki },
-	spring: { name: 'Spring', items: [] as typeof allWiki },
-	architecture: { name: 'Architecture', items: [] as typeof allWiki },
-	infra: { name: 'Infra', items: [] as typeof allWiki },
-	general: { name: 'General', items: [] as typeof allWiki },
+	database: { name: 'Database', icon: '🗄️', items: [] as typeof allWiki },
+	java: { name: 'Java', icon: '☕', items: [] as typeof allWiki },
+	spring: { name: 'Spring', icon: '🌱', items: [] as typeof allWiki },
+	architecture: { name: 'Architecture', icon: '🏗️', items: [] as typeof allWiki },
+	infra: { name: 'Infra', icon: '🐳', items: [] as typeof allWiki },
+	general: { name: 'General', icon: '📚', items: [] as typeof allWiki },
 };
 
 allWiki.forEach(wiki => {
@@ -49,7 +49,7 @@ Object.values(categories).forEach(cat => {
 				border: 1px solid rgb(var(--gray-light));
 				border-radius: 8px;
 				margin-bottom: 2em;
-				background: var(--card-bg, white);
+				background: var(--card-bg);
 				color: rgb(var(--gray-dark));
 			}
 			.search-box:focus {
@@ -74,7 +74,7 @@ Object.values(categories).forEach(cat => {
 				gap: 1em;
 			}
 			.wiki-item {
-				background: var(--card-bg, white);
+				background: var(--card-bg);
 				border: 1px solid rgb(var(--gray-light));
 				border-radius: 8px;
 				padding: 1em;
@@ -125,7 +125,7 @@ Object.values(categories).forEach(cat => {
 			{Object.entries(categories).map(([key, category]) => (
 				category.items.length > 0 && (
 					<section class="category" data-category={key}>
-						<h2>{category.name}</h2>
+						<h2>{category.icon} {category.name}</h2>
 						<ul class="wiki-list">
 							{category.items.map(wiki => (
 								<li class="wiki-item" data-term={wiki.data.term.toLowerCase()} data-aliases={wiki.data.aliases?.join(',').toLowerCase() || ''}>

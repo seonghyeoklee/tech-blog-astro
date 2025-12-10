@@ -11,7 +11,7 @@ const posts = (await getCollection('blog')).sort(
 );
 
 // 모든 태그 추출
-const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL', 'JPA', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS'];
+const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL', 'JPA', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'CS', 'OS', 'Network'];
 ---
 
 <!doctype html>
@@ -24,23 +24,6 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 				max-width: calc(100% - 2em);
 				margin: auto;
 				padding: 3em 1em;
-			}
-
-			/* 히어로 섹션 */
-			.hero {
-				text-align: center;
-				margin-bottom: 3em;
-				padding: 2em 0;
-			}
-			.hero h1 {
-				font-size: 2.5em;
-				margin: 0 0 0.5em 0;
-				color: rgb(var(--black));
-			}
-			.hero p {
-				color: rgb(var(--gray));
-				font-size: 1.1em;
-				margin: 0;
 			}
 
 			/* 태그 필터 */
@@ -118,6 +101,18 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 			.filter-btn[data-tag="AWS"].active {
 				background: #FF9900;
 				border-color: #FF9900;
+			}
+			.filter-btn[data-tag="CS"].active {
+				background: #6366F1;
+				border-color: #6366F1;
+			}
+			.filter-btn[data-tag="OS"].active {
+				background: #8B5CF6;
+				border-color: #8B5CF6;
+			}
+			.filter-btn[data-tag="Network"].active {
+				background: #06B6D4;
+				border-color: #06B6D4;
 			}
 
 			/* 글 목록 */
@@ -231,6 +226,18 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 				background-color: #FF9900;
 				color: white;
 			}
+			.tag-cs {
+				background-color: #6366F1;
+				color: white;
+			}
+			.tag-os {
+				background-color: #8B5CF6;
+				color: white;
+			}
+			.tag-network {
+				background-color: #06B6D4;
+				color: white;
+			}
 
 			/* 빈 상태 */
 			.empty-state {
@@ -250,9 +257,6 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 			}
 
 			@media (max-width: 720px) {
-				.hero h1 {
-					font-size: 2em;
-				}
 				.post-header {
 					flex-direction: column;
 					gap: 0.3em;
@@ -266,12 +270,6 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 	<body>
 		<Header />
 		<main>
-			<!-- 히어로 섹션 -->
-			<div class="hero">
-				<h1>shlee.dev</h1>
-				<p>매일 조금씩, 개발 기록</p>
-			</div>
-
 			<!-- 태그 필터 -->
 			<div class="tag-filter">
 				<button class="filter-btn active" data-tag="all">All</button>
