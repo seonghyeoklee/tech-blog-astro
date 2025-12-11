@@ -1,5 +1,6 @@
 ---
 import { getCollection, render } from 'astro:content';
+import { Analytics } from '@vercel/analytics/astro';
 import BaseHead from '../../components/BaseHead.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
@@ -145,5 +146,6 @@ const categoryNames: Record<string, string> = {
 			</article>
 		</main>
 		<Footer />
+		<Analytics />
 	</body>
 </html>
