@@ -73,13 +73,13 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 			}
 			.series-grid {
 				display: grid;
-				gap: 2em;
+				gap: 1.5em;
 			}
 			.series-card {
 				background: var(--card-bg);
 				border: 1px solid rgba(var(--gray-light), 0.5);
-				border-radius: 20px;
-				padding: 2.5em;
+				border-radius: 16px;
+				padding: 1.5em 2em;
 				transition: all 0.3s ease;
 				position: relative;
 				overflow: hidden;
@@ -99,12 +99,12 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
 			}
 			.series-header {
-				margin-bottom: 1.5em;
+				margin-bottom: 1.2em;
 			}
 			.series-name {
-				font-size: 1.8em;
+				font-size: 1.4em;
 				font-weight: 700;
-				margin-bottom: 0.5em;
+				margin-bottom: 0.4em;
 			}
 			.series-name a {
 				text-decoration: none;
@@ -116,16 +116,17 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 			}
 			.series-description {
 				color: rgb(var(--gray));
-				line-height: 1.7;
-				margin-bottom: 1.5em;
+				font-size: 0.95em;
+				line-height: 1.6;
+				margin-bottom: 1em;
 			}
 			.series-meta {
 				display: flex;
 				align-items: center;
-				gap: 1.5em;
-				font-size: 0.9em;
+				gap: 1em;
+				font-size: 0.85em;
 				color: rgb(var(--gray));
-				margin-bottom: 1.5em;
+				margin-bottom: 1em;
 			}
 			.meta-item {
 				display: flex;
@@ -141,8 +142,9 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 				display: flex;
 				align-items: baseline;
 				gap: 0.8em;
-				padding: 0.75em 0;
+				padding: 0.6em 0;
 				border-bottom: 1px solid rgba(var(--gray-light), 0.3);
+				font-size: 0.95em;
 			}
 			.post-item:last-child {
 				border-bottom: none;
