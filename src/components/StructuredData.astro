@@ -1,0 +1,52 @@
+---
+import type { ImageMetadata } from 'astro';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_AUTHOR } from '../consts';
+
+interface Props {
+	type: 'article' | 'website';
+	title: string;
+	description: string;
+	image?: ImageMetadata;
+	pubDate?: Date;
+	updatedDate?: Date;
+	url: URL;
+}
+
+const { type, title, description, image, pubDate, updatedDate, url } = Astro.props;
+
+const structuredData = type === 'article' && pubDate
+	? {
+			'@context': 'https://schema.org',
+			'@type': 'BlogPosting',
+			headline: title,
+			description: description,
+			image: image ? new URL(image.src, Astro.site).toString() : undefined,
+			datePublished: pubDate.toISOString(),
+			dateModified: updatedDate ? updatedDate.toISOString() : pubDate.toISOString(),
+			author: {
+				'@type': 'Person',
+				name: SITE_AUTHOR,
+			},
+			publisher: {
+				'@type': 'Organization',
+				name: SITE_TITLE,
+				logo: {
+					'@type': 'ImageObject',
+					url: new URL('/favicon.svg', Astro.site).toString(),
+				},
+			},
+			mainEntityOfPage: {
+				'@type': 'WebPage',
+				'@id': url.toString(),
+			},
+		}
+	: {
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			name: SITE_TITLE,
+			description: SITE_DESCRIPTION,
+			url: Astro.site?.toString(),
+		};
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(structuredData)} />

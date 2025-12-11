@@ -8,6 +8,7 @@ import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import ReadingTime from '../components/ReadingTime.astro';
+import StructuredData from '../components/StructuredData.astro';
 import WikiTermLinker from '../components/WikiTermLinker.astro';
 
 type Props = CollectionEntry<'blog'>['data'] & {
@@ -54,7 +55,22 @@ if (series) {
 
 <html lang="ko">
 	<head>
-		<BaseHead title={title} description={description} />
+		<BaseHead
+			title={title}
+			description={description}
+			image={heroImage}
+			pubDate={pubDate}
+			updatedDate={updatedDate}
+		/>
+		<StructuredData
+			type="article"
+			title={title}
+			description={description}
+			image={heroImage}
+			pubDate={pubDate}
+			updatedDate={updatedDate}
+			url={Astro.url}
+		/>
 		<script type="module">
 			import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 

@@ -3,6 +3,7 @@ import Analytics from '@vercel/analytics/astro';
 import BaseHead from '../components/BaseHead.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import StructuredData from '../components/StructuredData.astro';
 import { SITE_TITLE } from '../consts';
 ---
 
@@ -10,6 +11,12 @@ import { SITE_TITLE } from '../consts';
 <html lang="ko">
 	<head>
 		<BaseHead title="About Me" description="Backend Developer - Java, Kotlin, Spring" />
+		<StructuredData
+			type="website"
+			title="About Me"
+			description="Backend Developer - Java, Kotlin, Spring"
+			url={Astro.url}
+		/>
 		<style>
 			main {
 				width: 960px;

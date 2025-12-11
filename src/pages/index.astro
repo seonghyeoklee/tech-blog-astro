@@ -5,6 +5,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
 import FormattedDate from '../components/FormattedDate.astro';
+import StructuredData from '../components/StructuredData.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 
 const posts = (await getCollection('blog'))
@@ -49,6 +50,12 @@ const resources = [
 <html lang="ko">
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+		<StructuredData
+			type="website"
+			title={SITE_TITLE}
+			description={SITE_DESCRIPTION}
+			url={Astro.url}
+		/>
 		<style>
 			/* Hero Section */
 			.hero {
