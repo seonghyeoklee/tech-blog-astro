@@ -30,6 +30,22 @@ quiz:
       - "애플리케이션 서버 (Tomcat 등)"
     correctAnswer: 2
     explanation: "Spring은 트랜잭션의 시작(BEGIN)과 종료(COMMIT/ROLLBACK)를 관리하는 역할만 합니다. 실제 트랜잭션 격리, ACID 보장 등의 동작은 데이터베이스가 처리합니다."
+  - question: "트랜잭션의 원자성(Atomicity)을 보장하기 위해 데이터베이스가 사용하는 메커니즘은?"
+    options:
+      - "Redo Log"
+      - "Undo Log"
+      - "Binary Log"
+      - "Transaction Log"
+    correctAnswer: 1
+    explanation: "데이터베이스는 Undo Log를 사용하여 원자성을 보장합니다. 데이터를 변경하기 전에 원래 값을 Undo Log에 기록하고, ROLLBACK 시 이를 읽어서 원래 상태로 되돌립니다."
+  - question: "MySQL InnoDB의 기본 격리 수준인 REPEATABLE READ에서 발생할 수 있는 문제는?"
+    options:
+      - "Dirty Read"
+      - "Non-Repeatable Read"
+      - "Phantom Read"
+      - "모든 문제 발생 안 함"
+    correctAnswer: 2
+    explanation: "REPEATABLE READ에서는 트랜잭션 시작 시점의 스냅샷을 계속 보기 때문에 Dirty Read와 Non-Repeatable Read는 방지됩니다. 하지만 새로 INSERT된 row는 보일 수 있는 Phantom Read 문제가 발생할 수 있습니다."
 ---
 
 예를 들어, `@Transactional`을 단순히 "다 함께 성공하거나 실패하는 것"으로만 이해하고 사용하는 경우가 있습니다. 그러다 프로덕션에서 동시 주문 처리 중 재고가 마이너스로 떨어지는 버그가 발생할 수 있습니다. 원인은 격리 수준입니다. READ COMMITTED에서는 두 트랜잭션이 같은 재고를 동시에 읽을 수 있기 때문입니다.
