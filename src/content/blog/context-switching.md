@@ -3,7 +3,7 @@ title: '컨텍스트 스위칭 - 프로세스 전환의 비용'
 description: '컨텍스트 스위칭이 무엇이고 왜 비용이 발생하는지 정리했습니다'
 pubDate: 'Jan 08 2025'
 tags: ['CS', 'OS']
-series: 'backend-cs-fundamentals'
+series: 'operating-system-fundamentals'
 seriesOrder: 3
 ---
 

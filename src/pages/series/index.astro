@@ -12,9 +12,9 @@ const allPosts = await getCollection('blog');
 const seriesMap = new Map<string, { posts: typeof allPosts; name: string; description: string }>();
 
 const seriesInfo: Record<string, { name: string; description: string }> = {
-	'backend-cs-fundamentals': {
-		name: '백엔드 개발자를 위한 CS 기초',
-		description: '운영체제, 네트워크, 데이터베이스 등 백엔드 개발에 필수적인 컴퓨터 과학 기초 지식을 다룹니다.',
+	'operating-system-fundamentals': {
+		name: '운영체제 기초',
+		description: '프로세스, 스레드, 메모리 관리 등 운영체제의 핵심 개념을 백엔드 개발자 관점에서 정리합니다.',
 	},
 	'database-fundamentals': {
 		name: '데이터베이스 기초',

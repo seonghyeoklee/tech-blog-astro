@@ -3,7 +3,7 @@ title: '스택과 힙 - 메모리 구조 이해하기'
 description: '스택과 힙의 차이, 메모리 할당 방식, 그리고 왜 중요한지 정리했습니다'
 pubDate: 'Jan 12 2025'
 tags: ['CS', 'OS', 'Java']
-series: 'backend-cs-fundamentals'
+series: 'operating-system-fundamentals'
 seriesOrder: 4
 ---
 

@@ -3,7 +3,7 @@ title: '프로세스와 스레드 - 운영체제 기초'
 description: '프로세스와 스레드의 차이, 메모리 구조, 멀티스레딩의 장단점을 정리했습니다'
 pubDate: 'Jan 05 2025'
 tags: ['CS', 'OS']
-series: 'backend-cs-fundamentals'
+series: 'operating-system-fundamentals'
 seriesOrder: 1
 ---
 

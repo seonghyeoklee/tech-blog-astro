@@ -3,7 +3,7 @@ title: '프로세스 스케줄링 - CPU는 어떻게 작업을 분배하는가'
 description: 'CPU 스케줄링 알고리즘을 은행 창구, 응급실 비유로 쉽게 이해합니다'
 pubDate: 'Dec 15 2024'
 tags: ['CS', 'OS']
-series: 'backend-cs-fundamentals'
+series: 'operating-system-fundamentals'
 seriesOrder: 2
 ---
 
