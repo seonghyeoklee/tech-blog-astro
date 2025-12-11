@@ -223,6 +223,71 @@ if (series) {
 					grid-template-columns: 1fr;
 				}
 			}
+
+			/* 퀴즈 트리거 버튼 */
+			.quiz-trigger-container {
+				margin: 3em 0 2em 0;
+				display: flex;
+				justify-content: center;
+			}
+
+			.quiz-trigger-btn {
+				display: flex;
+				align-items: center;
+				gap: 1.5em;
+				padding: 1.5em 2.5em;
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.12) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.06) 100%);
+				border: 2px solid rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+				border-radius: 16px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+				font-family: inherit;
+			}
+
+			.quiz-trigger-btn:hover {
+				transform: translateY(-3px);
+				box-shadow: 0 8px 24px rgba(var(--accent-rgb, 91, 109, 255), 0.25);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.5);
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.18) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.08) 100%);
+			}
+
+			.quiz-icon {
+				font-size: 2.5em;
+				line-height: 1;
+			}
+
+			.quiz-text {
+				display: flex;
+				flex-direction: column;
+				gap: 0.25em;
+				text-align: left;
+			}
+
+			.quiz-text strong {
+				font-size: 1.2em;
+				color: rgb(var(--black));
+				font-weight: 700;
+			}
+
+			.quiz-text small {
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+			}
+
+			@media (max-width: 640px) {
+				.quiz-trigger-btn {
+					padding: 1.25em 1.75em;
+					gap: 1em;
+				}
+
+				.quiz-icon {
+					font-size: 2em;
+				}
+
+				.quiz-text strong {
+					font-size: 1em;
+				}
+			}
 		</style>
 	</head>
 
@@ -270,7 +335,18 @@ if (series) {
 					<slot />
 
 					{quiz && quiz.length > 0 && (
-						<Quiz quizzes={quiz} />
+						<>
+							<div class="quiz-trigger-container">
+								<button class="quiz-trigger-btn" id="quiz-trigger-btn">
+									<span class="quiz-icon">📝</span>
+									<span class="quiz-text">
+										<strong>이해도 확인 퀴즈</strong>
+										<small>{quiz.length}문항</small>
+									</span>
+								</button>
+							</div>
+							<Quiz quizzes={quiz} />
+						</>
 					)}
 
 					{(prevPost || nextPost) && (
@@ -302,5 +378,18 @@ if (series) {
 		<Footer />
 		<WikiTermLinker />
 		<Analytics />
+
+		<script>
+			// 퀴즈 모달 열기
+			document.addEventListener('DOMContentLoaded', () => {
+				const triggerBtn = document.getElementById('quiz-trigger-btn');
+				const modalOverlay = document.getElementById('quiz-modal-overlay');
+
+				triggerBtn?.addEventListener('click', () => {
+					modalOverlay?.classList.add('active');
+					document.body.style.overflow = 'hidden'; // 배경 스크롤 방지
+				});
+			});
+		</script>
 	</body>
 </html>
