@@ -209,5 +209,3 @@ MySQL InnoDB는 REPEATABLE READ에서 Gap Lock으로 Phantom Read까지 방지�
 - InnoDB는 Undo Log(롤백), Redo Log(복구), MVCC(격리)로 구현합니다
 - 격리 수준은 동시성과 정합성 사이의 트레이드오프입니다
 - MySQL 기본값인 REPEATABLE READ면 대부분 상황에서 충분합니다
-
-다음 글에서는 Spring이 DB 트랜잭션을 어떻게 다루는지 정리하겠습니다.

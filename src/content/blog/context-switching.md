@@ -157,5 +157,3 @@ ExecutorService executor = Executors.newFixedThreadPool(50);
 - 스레드 전환이 프로세스 전환보다 가볍습니다
 - CPU 바운드 작업은 스레드 수를 코어 수에 맞추는 게 좋습니다
 - I/O 바운드 작업은 스레드를 더 많이 써도 괜찮습니다
-
-다음 글에서는 메모리 구조(스택과 힙)에 대해 다루겠습니다.

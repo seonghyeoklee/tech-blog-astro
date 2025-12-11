@@ -228,5 +228,3 @@ for (int i = 0; i < 1000000; i++) {
 - 스택은 빠르지만 크기가 작고, 힙은 느리지만 크기가 큽니다
 - StackOverflowError는 스택 부족, OutOfMemoryError는 힙 부족입니다
 - Java에서는 힙을 Young/Old로 나눠서 GC 효율을 높입니다
-
-다음 글에서는 동기화와 락에 대해 다루겠습니다.
