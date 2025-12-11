@@ -32,7 +32,7 @@ export async function getStaticPaths() {
 		}
 	});
 
-	return Array.from(seriesMap.entries()).map(([slug, posts]) => {
+	const paths = Array.from(seriesMap.entries()).map(([slug, posts]) => {
 		const sortedPosts = posts.sort((a, b) => (a.data.seriesOrder || 0) - (b.data.seriesOrder || 0));
 		const info = seriesInfo[slug] || { name: slug, description: '' };
 
@@ -47,6 +47,8 @@ export async function getStaticPaths() {
 			},
 		};
 	});
+
+	return paths;
 }
 
 const { series } = Astro.props;
