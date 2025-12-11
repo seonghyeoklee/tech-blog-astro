@@ -7,6 +7,7 @@ import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
+import Quiz from '../components/Quiz.astro';
 import ReadingTime from '../components/ReadingTime.astro';
 import StructuredData from '../components/StructuredData.astro';
 import WikiTermLinker from '../components/WikiTermLinker.astro';
@@ -17,7 +18,7 @@ type Props = CollectionEntry<'blog'>['data'] & {
 	slug?: string;
 };
 
-const { title, description, pubDate, updatedDate, heroImage, headings, rawContent, series, seriesOrder, slug } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, headings, rawContent, series, seriesOrder, slug, quiz } = Astro.props;
 
 // 시리즈 정보가 있으면 같은 시리즈의 다른 글들을 가져옴
 let seriesInfo = null;
@@ -267,6 +268,10 @@ if (series) {
 					)}
 
 					<slot />
+
+					{quiz && quiz.length > 0 && (
+						<Quiz quizzes={quiz} />
+					)}
 
 					{(prevPost || nextPost) && (
 						<nav class="series-navigation">

@@ -1,0 +1,415 @@
+---
+interface QuizItem {
+	question: string;
+	options: string[];
+	correctAnswer: number;
+	explanation?: string;
+}
+
+interface Props {
+	quizzes: QuizItem[];
+}
+
+const { quizzes } = Astro.props;
+
+// quiz가 없으면 렌더링하지 않음
+if (!quizzes || quizzes.length === 0) {
+	return null;
+}
+---
+
+<div class="quiz-container">
+	<div class="quiz-header">
+		<h2>📝 이해도 확인 퀴즈</h2>
+		<p>내용을 제대로 이해했는지 확인해보세요!</p>
+	</div>
+
+	{
+		quizzes.map((quiz, quizIndex) => (
+			<div class="quiz-item" data-quiz-index={quizIndex}>
+				<div class="quiz-question">
+					<span class="question-number">Q{quizIndex + 1}.</span>
+					<span class="question-text">{quiz.question}</span>
+				</div>
+
+				<div class="quiz-options">
+					{quiz.options.map((option, optionIndex) => (
+						<button
+							class="quiz-option"
+							data-quiz-index={quizIndex}
+							data-option-index={optionIndex}
+							data-correct={optionIndex === quiz.correctAnswer}
+						>
+							<span class="option-label">{String.fromCharCode(65 + optionIndex)}.</span>
+							<span class="option-text">{option}</span>
+						</button>
+					))}
+				</div>
+
+				{quiz.explanation && (
+					<div class="quiz-explanation" data-quiz-index={quizIndex}>
+						<div class="explanation-icon">💡</div>
+						<div class="explanation-text">{quiz.explanation}</div>
+					</div>
+				)}
+			</div>
+		))
+	}
+
+	<div class="quiz-result">
+		<div class="result-score">
+			<span class="score-label">점수:</span>
+			<span class="score-value">0 / {quizzes.length}</span>
+		</div>
+		<button class="reset-btn">다시 풀기</button>
+	</div>
+</div>
+
+<style>
+	.quiz-container {
+		margin: 3em 0;
+		padding: 2em;
+		background: var(--card-bg);
+		border: 1px solid rgba(var(--gray-light), 0.5);
+		border-radius: 16px;
+		box-shadow: 0 4px 12px rgba(var(--gray), 0.1);
+	}
+
+	.quiz-header {
+		text-align: center;
+		margin-bottom: 2em;
+		padding-bottom: 1.5em;
+		border-bottom: 2px solid rgba(var(--accent-rgb, 91, 109, 255), 0.2);
+	}
+
+	.quiz-header h2 {
+		margin: 0 0 0.5em 0;
+		color: rgb(var(--black));
+		font-size: 1.8em;
+	}
+
+	.quiz-header p {
+		margin: 0;
+		color: rgb(var(--gray));
+		font-size: 0.95em;
+	}
+
+	.quiz-item {
+		margin-bottom: 2.5em;
+		padding: 1.5em;
+		background: rgba(var(--gray-light), 0.1);
+		border-radius: 12px;
+		transition: all 0.3s ease;
+	}
+
+	.quiz-item:last-of-type {
+		margin-bottom: 2em;
+	}
+
+	.quiz-question {
+		display: flex;
+		gap: 0.75em;
+		margin-bottom: 1.25em;
+		font-size: 1.1em;
+		font-weight: 600;
+		color: rgb(var(--black));
+		line-height: 1.5;
+	}
+
+	.question-number {
+		color: var(--accent);
+		flex-shrink: 0;
+	}
+
+	.question-text {
+		flex: 1;
+	}
+
+	.quiz-options {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75em;
+	}
+
+	.quiz-option {
+		display: flex;
+		align-items: center;
+		gap: 0.75em;
+		padding: 1em 1.25em;
+		background: var(--card-bg);
+		border: 2px solid rgba(var(--gray-light), 0.5);
+		border-radius: 10px;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		text-align: left;
+		font-size: 0.95em;
+		color: rgb(var(--gray-dark));
+	}
+
+	.quiz-option:hover:not(.selected):not(.disabled) {
+		border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.4);
+		background: rgba(var(--accent-rgb, 91, 109, 255), 0.05);
+		transform: translateX(4px);
+	}
+
+	.option-label {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		background: rgba(var(--gray-light), 0.3);
+		border-radius: 50%;
+		font-weight: 700;
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		flex-shrink: 0;
+	}
+
+	.option-text {
+		flex: 1;
+		line-height: 1.5;
+	}
+
+	/* 선택된 옵션 */
+	.quiz-option.selected {
+		border-width: 2px;
+	}
+
+	.quiz-option.selected.correct {
+		border-color: #10b981;
+		background: rgba(16, 185, 129, 0.1);
+	}
+
+	.quiz-option.selected.correct .option-label {
+		background: #10b981;
+		color: white;
+	}
+
+	.quiz-option.selected.incorrect {
+		border-color: #ef4444;
+		background: rgba(239, 68, 68, 0.1);
+	}
+
+	.quiz-option.selected.incorrect .option-label {
+		background: #ef4444;
+		color: white;
+	}
+
+	/* 답변 후 disabled 상태 */
+	.quiz-option.disabled {
+		cursor: not-allowed;
+		opacity: 0.6;
+	}
+
+	/* 해설 */
+	.quiz-explanation {
+		display: none;
+		margin-top: 1.25em;
+		padding: 1.25em;
+		background: rgba(var(--accent-rgb, 91, 109, 255), 0.08);
+		border-left: 4px solid var(--accent);
+		border-radius: 8px;
+		animation: slideDown 0.3s ease;
+	}
+
+	.quiz-explanation.show {
+		display: flex;
+		gap: 1em;
+	}
+
+	.explanation-icon {
+		font-size: 1.5em;
+		flex-shrink: 0;
+	}
+
+	.explanation-text {
+		flex: 1;
+		color: rgb(var(--gray-dark));
+		line-height: 1.6;
+		font-size: 0.95em;
+	}
+
+	@keyframes slideDown {
+		from {
+			opacity: 0;
+			transform: translateY(-10px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	/* 결과 */
+	.quiz-result {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1.5em;
+		background: linear-gradient(
+			135deg,
+			rgba(var(--accent-rgb, 91, 109, 255), 0.1) 0%,
+			rgba(var(--accent-rgb, 91, 109, 255), 0.05) 100%
+		);
+		border-radius: 12px;
+		border: 1px solid rgba(var(--accent-rgb, 91, 109, 255), 0.2);
+	}
+
+	.result-score {
+		display: flex;
+		align-items: center;
+		gap: 0.75em;
+		font-size: 1.1em;
+	}
+
+	.score-label {
+		color: rgb(var(--gray));
+		font-weight: 500;
+	}
+
+	.score-value {
+		font-weight: 700;
+		font-size: 1.3em;
+		color: var(--accent);
+	}
+
+	.reset-btn {
+		padding: 0.75em 1.5em;
+		background: var(--accent);
+		color: white;
+		border: none;
+		border-radius: 8px;
+		font-weight: 600;
+		font-size: 0.95em;
+		cursor: pointer;
+		transition: all 0.3s ease;
+	}
+
+	.reset-btn:hover {
+		opacity: 0.9;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+	}
+
+	@media (max-width: 640px) {
+		.quiz-container {
+			padding: 1.5em 1em;
+		}
+
+		.quiz-header h2 {
+			font-size: 1.5em;
+		}
+
+		.quiz-question {
+			font-size: 1em;
+		}
+
+		.quiz-result {
+			flex-direction: column;
+			gap: 1em;
+			text-align: center;
+		}
+
+		.reset-btn {
+			width: 100%;
+		}
+	}
+</style>
+
+<script>
+	// 퀴즈 상태 관리
+	let answeredQuizzes = new Set<number>();
+	let score = 0;
+	const totalQuizzes = document.querySelectorAll('.quiz-item').length;
+
+	// 옵션 클릭 핸들러
+	function handleOptionClick(event: Event) {
+		const button = event.currentTarget as HTMLButtonElement;
+		const quizIndex = parseInt(button.dataset.quizIndex || '0');
+		const optionIndex = parseInt(button.dataset.optionIndex || '0');
+		const isCorrect = button.dataset.correct === 'true';
+
+		// 이미 답한 문제는 무시
+		if (answeredQuizzes.has(quizIndex)) {
+			return;
+		}
+
+		// 현재 퀴즈의 모든 옵션 가져오기
+		const quizItem = document.querySelector(`.quiz-item[data-quiz-index="${quizIndex}"]`);
+		if (!quizItem) return;
+
+		const allOptions = quizItem.querySelectorAll('.quiz-option');
+
+		// 모든 옵션 비활성화
+		allOptions.forEach((opt) => {
+			opt.classList.add('disabled');
+		});
+
+		// 선택한 옵션 표시
+		button.classList.add('selected');
+		button.classList.add(isCorrect ? 'correct' : 'incorrect');
+
+		// 정답이 아닌 경우 정답도 표시
+		if (!isCorrect) {
+			const correctButton = quizItem.querySelector('.quiz-option[data-correct="true"]');
+			correctButton?.classList.add('selected', 'correct');
+		}
+
+		// 해설 표시
+		const explanation = document.querySelector(`.quiz-explanation[data-quiz-index="${quizIndex}"]`);
+		if (explanation) {
+			explanation.classList.add('show');
+		}
+
+		// 점수 업데이트
+		if (isCorrect) {
+			score++;
+		}
+		answeredQuizzes.add(quizIndex);
+		updateScore();
+	}
+
+	// 점수 업데이트
+	function updateScore() {
+		const scoreValue = document.querySelector('.score-value');
+		if (scoreValue) {
+			scoreValue.textContent = `${score} / ${totalQuizzes}`;
+		}
+	}
+
+	// 다시 풀기
+	function resetQuiz() {
+		// 상태 초기화
+		answeredQuizzes.clear();
+		score = 0;
+		updateScore();
+
+		// UI 초기화
+		document.querySelectorAll('.quiz-option').forEach((option) => {
+			option.classList.remove('selected', 'correct', 'incorrect', 'disabled');
+		});
+
+		document.querySelectorAll('.quiz-explanation').forEach((explanation) => {
+			explanation.classList.remove('show');
+		});
+
+		// 첫 번째 퀴즈로 스크롤
+		const firstQuiz = document.querySelector('.quiz-item');
+		if (firstQuiz) {
+			firstQuiz.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		}
+	}
+
+	// 이벤트 리스너 등록
+	document.addEventListener('DOMContentLoaded', () => {
+		// 옵션 클릭
+		document.querySelectorAll('.quiz-option').forEach((button) => {
+			button.addEventListener('click', handleOptionClick);
+		});
+
+		// 다시 풀기 버튼
+		const resetBtn = document.querySelector('.reset-btn');
+		resetBtn?.addEventListener('click', resetQuiz);
+	});
+</script>

@@ -5,6 +5,31 @@ pubDate: 'Jan 01 2025'
 tags: ['Database', 'MySQL']
 series: 'database-fundamentals'
 seriesOrder: 1
+quiz:
+  - question: "READ COMMITTED 격리 수준에서 발생할 수 있는 현상은?"
+    options:
+      - "Dirty Read"
+      - "Non-Repeatable Read"
+      - "Phantom Read만 발생"
+      - "모든 이상 현상 방지"
+    correctAnswer: 1
+    explanation: "READ COMMITTED는 커밋된 데이터만 읽지만, 같은 트랜잭션 내에서 동일한 SELECT를 두 번 실행했을 때 다른 결과가 나올 수 있습니다. 이를 Non-Repeatable Read라고 합니다."
+  - question: "ACID 속성 중 '격리성'을 의미하는 것은?"
+    options:
+      - "Atomicity"
+      - "Consistency"
+      - "Isolation"
+      - "Durability"
+    correctAnswer: 2
+    explanation: "Isolation(격리성)은 여러 트랜잭션이 동시에 실행될 때 서로 영향을 주지 않도록 격리하는 속성입니다. 격리 수준(READ COMMITTED, REPEATABLE READ 등)에 따라 격리 정도가 달라집니다."
+  - question: "Spring의 @Transactional이 실제로 트랜잭션을 처리하는 주체는?"
+    options:
+      - "Spring Framework"
+      - "JVM"
+      - "Database (MySQL, PostgreSQL 등)"
+      - "애플리케이션 서버 (Tomcat 등)"
+    correctAnswer: 2
+    explanation: "Spring은 트랜잭션의 시작(BEGIN)과 종료(COMMIT/ROLLBACK)를 관리하는 역할만 합니다. 실제 트랜잭션 격리, ACID 보장 등의 동작은 데이터베이스가 처리합니다."
 ---
 
 예를 들어, `@Transactional`을 단순히 "다 함께 성공하거나 실패하는 것"으로만 이해하고 사용하는 경우가 있습니다. 그러다 프로덕션에서 동시 주문 처리 중 재고가 마이너스로 떨어지는 버그가 발생할 수 있습니다. 원인은 격리 수준입니다. READ COMMITTED에서는 두 트랜잭션이 같은 재고를 동시에 읽을 수 있기 때문입니다.

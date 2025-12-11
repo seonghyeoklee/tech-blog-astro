@@ -13,6 +13,12 @@ const blog = defineCollection({
 			tags: z.array(z.enum(['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL', 'JPA', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'CS', 'OS', 'Network'])).optional(),
 			series: z.string().optional(),
 			seriesOrder: z.number().optional(),
+			quiz: z.array(z.object({
+				question: z.string(),
+				options: z.array(z.string()),
+				correctAnswer: z.number(),
+				explanation: z.string().optional(),
+			})).optional(),
 		}),
 });
 
