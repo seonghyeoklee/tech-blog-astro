@@ -11,6 +11,9 @@ const posts = (await getCollection('blog'))
 	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
 	.slice(0, 5);
 
+const allPosts = await getCollection('blog');
+const wikiTerms = await getCollection('wiki');
+
 const announcements = [
 	{ date: '2025-01-05', content: '블로그를 시작했습니다. CS 기초부터 차근차근 정리해나갈 예정입니다.' },
 ];
@@ -47,27 +50,183 @@ const resources = [
 	<head>
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
 		<style>
+			/* Hero Section */
+			.hero {
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.05) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.02) 100%);
+				border-bottom: 1px solid rgba(var(--gray-light), 0.3);
+				position: relative;
+				overflow: hidden;
+			}
+			.hero::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				right: 0;
+				bottom: 0;
+				background:
+					radial-gradient(circle at 20% 50%, rgba(var(--accent-rgb, 91, 109, 255), 0.03) 0%, transparent 50%),
+					radial-gradient(circle at 80% 80%, rgba(var(--accent-rgb, 91, 109, 255), 0.03) 0%, transparent 50%);
+				pointer-events: none;
+			}
+			.hero-content {
+				width: 960px;
+				max-width: calc(100% - 2em);
+				margin: 0 auto;
+				padding: 4em 1em 5em;
+				position: relative;
+				z-index: 1;
+			}
+			.hero h1 {
+				font-size: 3.5em;
+				font-weight: 800;
+				margin: 0 0 0.3em 0;
+				background: linear-gradient(135deg, rgb(var(--black)) 0%, rgb(var(--gray-dark)) 100%);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+				line-height: 1.2;
+			}
+			.hero .tagline {
+				font-size: 1.4em;
+				color: rgb(var(--gray));
+				margin-bottom: 1.5em;
+				font-weight: 500;
+			}
+			.hero .intro {
+				font-size: 1.05em;
+				color: rgb(var(--gray-dark));
+				line-height: 1.8;
+				max-width: 600px;
+				margin-bottom: 2em;
+			}
+			.hero-stats {
+				display: flex;
+				gap: 2.5em;
+				margin-top: 2em;
+			}
+			.stat {
+				display: flex;
+				flex-direction: column;
+			}
+			.stat-number {
+				font-size: 2.5em;
+				font-weight: 800;
+				color: var(--accent);
+				line-height: 1;
+				margin-bottom: 0.2em;
+			}
+			.stat-label {
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+				font-weight: 500;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+
 			main {
 				width: 960px;
 				max-width: calc(100% - 2em);
 				margin: auto;
-				padding: 2em 1em 4em;
+				padding: 3em 1em 4em;
 			}
 
-			h1 {
-				margin-bottom: 0.5em;
+			/* Section Headers */
+			.section-header {
+				margin-bottom: 2.5em;
 			}
-			.description {
+			.section-title {
+				font-size: 2em;
+				font-weight: 700;
+				margin-bottom: 0.5em;
+				color: rgb(var(--black));
+			}
+			.section-subtitle {
+				font-size: 1.05em;
 				color: rgb(var(--gray));
-				margin-bottom: 2em;
+			}
+
+			/* Featured Post */
+			.featured-post {
+				background: linear-gradient(135deg, var(--card-bg) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.02) 100%);
+				border: 1px solid rgba(var(--gray-light), 0.5);
+				border-radius: 20px;
+				padding: 2.5em;
+				margin-bottom: 3em;
+				transition: all 0.3s ease;
+				position: relative;
+				overflow: hidden;
+			}
+			.featured-post::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 4px;
+				height: 100%;
+				background: linear-gradient(180deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.3) 100%);
+			}
+			.featured-post:hover {
+				transform: translateY(-4px);
+				box-shadow: 0 12px 40px rgba(var(--gray), 0.15);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+			}
+			.featured-badge {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.4em;
+				padding: 0.4em 0.9em;
+				background: linear-gradient(135deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.8) 100%);
+				color: white;
+				border-radius: 20px;
+				font-size: 0.75em;
+				font-weight: 600;
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				margin-bottom: 1em;
+			}
+			.featured-post h3 {
+				font-size: 1.8em;
+				font-weight: 700;
+				margin-bottom: 0.5em;
+				line-height: 1.3;
+			}
+			.featured-post h3 a {
+				text-decoration: none;
+				color: rgb(var(--black));
+				transition: color 0.2s ease;
+			}
+			.featured-post h3 a:hover {
+				color: var(--accent);
+			}
+			.featured-meta {
+				display: flex;
+				align-items: center;
+				gap: 1em;
+				margin-bottom: 1em;
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+			}
+			.featured-tags {
+				display: flex;
+				gap: 0.5em;
+				flex-wrap: wrap;
+			}
+			.featured-tag {
+				padding: 0.35em 0.8em;
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.1);
+				color: var(--accent);
+				border-radius: 6px;
+				font-size: 0.8em;
+				font-weight: 600;
 			}
 
 			/* Grid Layout */
 			.grid {
 				display: grid;
 				grid-template-columns: 1fr 1fr;
-				gap: 1.5em;
-				margin-bottom: 1.5em;
+				gap: 2em;
+				margin-bottom: 2em;
 			}
 			@media (max-width: 768px) {
 				.grid {
@@ -78,27 +237,42 @@ const resources = [
 			/* Section Cards */
 			section {
 				background: var(--card-bg);
-				border: 1px solid rgba(var(--gray-light), 0.8);
-				border-radius: 16px;
-				padding: 1.75em;
-				transition: transform 0.2s ease, box-shadow 0.2s ease;
+				border: 1px solid rgba(var(--gray-light), 0.5);
+				border-radius: 20px;
+				padding: 2em;
+				transition: all 0.3s ease;
+				position: relative;
+			}
+			section::after {
+				content: '';
+				position: absolute;
+				inset: 0;
+				border-radius: 20px;
+				padding: 1px;
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.1) 0%, transparent 100%);
+				-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+				-webkit-mask-composite: xor;
+				mask-composite: exclude;
+				pointer-events: none;
+				opacity: 0;
+				transition: opacity 0.3s ease;
+			}
+			section:hover::after {
+				opacity: 1;
 			}
 			section:hover {
 				transform: translateY(-2px);
-				box-shadow: 0 8px 24px rgba(var(--gray), 0.1);
+				box-shadow: 0 8px 32px rgba(var(--gray), 0.12);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.2);
 			}
 			section h2 {
-				font-size: 0.85em;
-				font-weight: 600;
-				margin: 0 0 1em;
-				padding-bottom: 0.6em;
-				border-bottom: 1px solid rgba(var(--gray-light), 0.6);
+				font-size: 1.1em;
+				font-weight: 700;
+				margin: 0 0 1.5em;
+				color: rgb(var(--black));
 				display: flex;
 				align-items: center;
-				gap: 0.4em;
-				color: rgb(var(--gray));
-				letter-spacing: 0.03em;
-				text-transform: uppercase;
+				gap: 0.5em;
 			}
 
 			/* Posts List */
@@ -108,9 +282,10 @@ const resources = [
 				margin: 0;
 			}
 			.post-item {
-				padding: 0.875em 0;
-				border-bottom: 1px solid rgba(var(--gray-light), 0.4);
-				transition: padding-left 0.2s ease;
+				padding: 1em 0;
+				border-bottom: 1px solid rgba(var(--gray-light), 0.3);
+				transition: all 0.2s ease;
+				position: relative;
 			}
 			.post-item:last-child {
 				border-bottom: none;
@@ -119,42 +294,59 @@ const resources = [
 			.post-item:first-child {
 				padding-top: 0;
 			}
+			.post-item::before {
+				content: '';
+				position: absolute;
+				left: -2em;
+				top: 50%;
+				transform: translateY(-50%);
+				width: 4px;
+				height: 0;
+				background: var(--accent);
+				border-radius: 2px;
+				transition: height 0.2s ease;
+			}
+			.post-item:hover::before {
+				height: 60%;
+			}
 			.post-item:hover {
-				padding-left: 0.5em;
+				padding-left: 1em;
 			}
 			.post-item a {
 				text-decoration: none;
 				color: rgb(var(--black));
-				font-weight: 500;
-				font-size: 0.95em;
-				line-height: 1.4;
+				font-weight: 600;
+				font-size: 1em;
+				line-height: 1.5;
 				transition: color 0.2s ease;
 			}
 			.post-item a:hover {
 				color: var(--accent);
 			}
 			.post-date {
-				font-size: 0.8em;
+				font-size: 0.85em;
 				color: rgb(var(--gray));
-				margin-top: 0.35em;
+				margin-top: 0.4em;
+				font-weight: 500;
 			}
 			.more-link {
 				display: inline-flex;
 				align-items: center;
-				gap: 0.3em;
-				margin-top: 1.25em;
-				padding: 0.5em 1em;
-				color: var(--accent);
+				gap: 0.4em;
+				margin-top: 1.5em;
+				padding: 0.6em 1.2em;
+				color: white;
+				background: linear-gradient(135deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.8) 100%);
 				text-decoration: none;
-				font-size: 0.85em;
-				font-weight: 500;
-				border-radius: 20px;
-				background: rgba(var(--accent-rgb, 91, 109, 255), 0.08);
-				transition: all 0.2s ease;
+				font-size: 0.9em;
+				font-weight: 600;
+				border-radius: 25px;
+				box-shadow: 0 4px 12px rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+				transition: all 0.3s ease;
 			}
 			.more-link:hover {
-				background: rgba(var(--accent-rgb, 91, 109, 255), 0.15);
-				transform: translateX(3px);
+				box-shadow: 0 6px 20px rgba(var(--accent-rgb, 91, 109, 255), 0.4);
+				transform: translateY(-2px);
 			}
 
 			/* Announcements */
@@ -164,71 +356,96 @@ const resources = [
 				margin: 0;
 			}
 			.announcement-item {
-				padding: 0.75em 1em;
-				font-size: 0.9em;
-				line-height: 1.6;
-				background: rgba(var(--gray-light), 0.3);
-				border-radius: 10px;
-				margin-bottom: 0.75em;
+				padding: 1em 1.25em;
+				font-size: 0.95em;
+				line-height: 1.7;
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.05) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.02) 100%);
+				border: 1px solid rgba(var(--accent-rgb, 91, 109, 255), 0.1);
+				border-left: 3px solid var(--accent);
+				border-radius: 12px;
+				margin-bottom: 1em;
+				transition: all 0.2s ease;
 			}
 			.announcement-item:last-child {
 				margin-bottom: 0;
 			}
+			.announcement-item:hover {
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.08);
+				border-left-color: var(--accent);
+				transform: translateX(4px);
+			}
 			.announcement-date {
-				display: block;
+				display: inline-block;
 				font-size: 0.75em;
-				color: rgb(var(--gray));
-				margin-bottom: 0.3em;
-				font-weight: 500;
+				color: var(--accent);
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.1);
+				padding: 0.3em 0.7em;
+				border-radius: 6px;
+				margin-bottom: 0.6em;
+				font-weight: 600;
 			}
 
 			/* Docs Grid */
 			.docs-grid {
 				display: grid;
 				grid-template-columns: repeat(6, 1fr);
-				gap: 1em;
+				gap: 1.2em;
 			}
 			@media (max-width: 768px) {
 				.docs-grid {
 					grid-template-columns: repeat(3, 1fr);
-					gap: 0.75em;
+					gap: 1em;
 				}
 			}
 			.doc-link {
 				display: flex;
 				flex-direction: column;
 				align-items: center;
-				padding: 1.25em 0.75em;
-				background: rgba(var(--gray-light), 0.2);
-				border: 1px solid transparent;
-				border-radius: 12px;
+				padding: 1.5em 1em;
+				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
+				border: 1px solid rgba(var(--gray-light), 0.3);
+				border-radius: 16px;
 				text-decoration: none;
 				color: rgb(var(--gray-dark));
-				font-size: 0.8em;
-				font-weight: 500;
-				transition: all 0.25s ease;
+				font-size: 0.85em;
+				font-weight: 600;
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+				position: relative;
+				overflow: hidden;
+			}
+			.doc-link::before {
+				content: '';
+				position: absolute;
+				inset: 0;
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.08) 0%, transparent 100%);
+				opacity: 0;
+				transition: opacity 0.3s ease;
+			}
+			.doc-link:hover::before {
+				opacity: 1;
 			}
 			.doc-link:hover {
-				background: rgba(var(--gray-light), 0.4);
-				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
-				transform: translateY(-4px);
-				box-shadow: 0 6px 20px rgba(var(--gray), 0.12);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.4);
+				transform: translateY(-6px);
+				box-shadow: 0 8px 24px rgba(var(--gray), 0.15);
 			}
 			.doc-link:hover .doc-icon {
-				transform: scale(1.1);
+				transform: scale(1.15) rotate(5deg);
 			}
 			.doc-icon {
-				width: 32px;
-				height: 32px;
-				margin-bottom: 0.6em;
-				transition: transform 0.25s ease;
+				width: 40px;
+				height: 40px;
+				margin-bottom: 0.8em;
+				transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+				position: relative;
+				z-index: 1;
 			}
 
 			/* Resources */
 			.resources-grid {
 				display: grid;
 				grid-template-columns: repeat(4, 1fr);
-				gap: 1em;
+				gap: 1.2em;
 			}
 			@media (max-width: 960px) {
 				.resources-grid {
@@ -242,44 +459,129 @@ const resources = [
 			}
 			.resource-card {
 				display: block;
-				padding: 1em 1.25em;
-				background: rgba(var(--gray-light), 0.2);
-				border-radius: 12px;
+				padding: 1.5em 1.5em;
+				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
+				border: 1px solid rgba(var(--gray-light), 0.3);
+				border-radius: 16px;
 				text-decoration: none;
-				transition: all 0.2s ease;
+				transition: all 0.3s ease;
+				position: relative;
+			}
+			.resource-card::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 3px;
+				height: 0;
+				background: linear-gradient(180deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.3) 100%);
+				border-radius: 0 2px 2px 0;
+				transition: height 0.3s ease;
+			}
+			.resource-card:hover::before {
+				height: 100%;
 			}
 			.resource-card:hover {
-				background: rgba(var(--gray-light), 0.4);
-				transform: translateX(4px);
+				background: rgba(var(--gray-light), 0.25);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.2);
+				transform: translateX(6px);
+				box-shadow: 0 4px 16px rgba(var(--gray), 0.1);
 			}
 			.resource-name {
 				color: rgb(var(--black));
-				font-weight: 600;
-				font-size: 0.95em;
-				margin-bottom: 0.25em;
+				font-weight: 700;
+				font-size: 1.05em;
+				margin-bottom: 0.4em;
 			}
 			.resource-desc {
-				font-size: 0.8em;
+				font-size: 0.85em;
 				color: rgb(var(--gray));
-				line-height: 1.4;
+				line-height: 1.5;
 			}
 
 			.full-width {
 				grid-column: 1 / -1;
 			}
+
+			/* Responsive Design */
+			@media (max-width: 768px) {
+				.hero h1 {
+					font-size: 2.5em;
+				}
+				.hero .tagline {
+					font-size: 1.2em;
+				}
+				.hero-stats {
+					gap: 1.5em;
+				}
+				.stat-number {
+					font-size: 2em;
+				}
+				.featured-post {
+					padding: 2em;
+				}
+				.featured-post h3 {
+					font-size: 1.5em;
+				}
+				.section-title {
+					font-size: 1.6em;
+				}
+			}
 		</style>
 	</head>
 	<body>
 		<Header />
+
+		<!-- Hero Section -->
+		<div class="hero">
+			<div class="hero-content">
+				<h1>shlee.dev</h1>
+				<p class="tagline">매일 조금씩, 개발 기록</p>
+				<p class="intro">
+					Java, Kotlin, Spring 백엔드 개발과 CS 기초를 다루는 기술 블로그입니다.<br />
+					복잡한 개념을 쉽게 풀어내고, 경험을 공유합니다.
+				</p>
+				<div class="hero-stats">
+					<div class="stat">
+						<div class="stat-number">{allPosts.length}</div>
+						<div class="stat-label">Posts</div>
+					</div>
+					<div class="stat">
+						<div class="stat-number">{wikiTerms.length}</div>
+						<div class="stat-label">Wiki Terms</div>
+					</div>
+					<div class="stat">
+						<div class="stat-number">{new Set(allPosts.flatMap(p => p.data.tags || [])).size}</div>
+						<div class="stat-label">Topics</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
 		<main>
-			<h1>shlee.dev</h1>
-			<p class="description">매일 조금씩, 개발 기록</p>
+			<!-- Featured Post -->
+			{posts.length > 0 && (
+				<div class="featured-post">
+					<div class="featured-badge">✨ Latest Post</div>
+					<h3><a href={`/blog/${posts[0].id}/`}>{posts[0].data.title}</a></h3>
+					<div class="featured-meta">
+						<FormattedDate date={posts[0].data.pubDate} />
+						{posts[0].data.tags && (
+							<div class="featured-tags">
+								{posts[0].data.tags.map((tag) => (
+									<span class="featured-tag">{tag}</span>
+								))}
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 
 			<div class="grid">
 				<section>
 					<h2>📝 최근 글</h2>
 					<ul class="post-list">
-						{posts.map((post) => (
+						{posts.slice(1).map((post) => (
 							<li class="post-item">
 								<a href={`/blog/${post.id}/`}>{post.data.title}</a>
 								<div class="post-date">
