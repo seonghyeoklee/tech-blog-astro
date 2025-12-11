@@ -3,6 +3,8 @@ title: 'DB 트랜잭션 기본 - ACID와 격리 수준'
 description: '트랜잭션의 본질과 격리 수준별 동작 차이를 정리했습니다'
 pubDate: 'Jan 01 2025'
 tags: ['Database', 'MySQL']
+series: 'database-fundamentals'
+seriesOrder: 1
 ---
 
 @Transactional을 매일 쓰면서도, 정작 DB 트랜잭션이 어떻게 동작하는지 제대로 정리한 적이 없었습니다. Spring은 트랜잭션을 "관리"할 뿐이고, 실제 동작은 DB가 처리합니다. isolation 옵션을 바꿔본 적은 있는데, 왜 그래야 하는지 명확히 설명하지 못했습니다. 그래서 MySQL InnoDB 기준으로 트랜잭션의 기본 개념을 정리했습니다.

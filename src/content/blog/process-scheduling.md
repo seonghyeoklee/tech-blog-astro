@@ -3,6 +3,8 @@ title: '프로세스 스케줄링 - CPU는 어떻게 작업을 분배하는가'
 description: 'CPU 스케줄링 알고리즘을 은행 창구, 응급실 비유로 쉽게 이해합니다'
 pubDate: 'Dec 15 2024'
 tags: ['CS', 'OS']
+series: 'backend-cs-fundamentals'
+seriesOrder: 2
 ---
 
 크롬 탭을 100개 열어도 컴퓨터는 멈추지 않습니다. 동시에 음악을 듣고, 코드를 작성하고, 빌드도 돌립니다. CPU는 하나인데 어떻게 이게 가능할까요? 바로 프로세스 스케줄링 덕분입니다.

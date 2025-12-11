@@ -30,7 +30,7 @@ const { post, prevPost, nextPost } = Astro.props;
 const { Content, headings } = await render(post);
 ---
 
-<BlogPost {...post.data} headings={headings} rawContent={post.body || ''}>
+<BlogPost {...post.data} headings={headings} rawContent={post.body || ''} slug={post.slug}>
 	<TableOfContents headings={headings} />
 	<Content />
 	<PostNavigation prevPost={prevPost} nextPost={nextPost} />

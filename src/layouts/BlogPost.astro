@@ -1,5 +1,6 @@
 ---
 import { Image } from 'astro:assets';
+import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import Analytics from '@vercel/analytics/astro';
 import BaseHead from '../components/BaseHead.astro';
@@ -12,9 +13,43 @@ import WikiTermLinker from '../components/WikiTermLinker.astro';
 type Props = CollectionEntry<'blog'>['data'] & {
 	headings?: { depth: number; slug: string; text: string }[];
 	rawContent?: string;
+	slug?: string;
 };
 
-const { title, description, pubDate, updatedDate, heroImage, headings, rawContent } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, headings, rawContent, series, seriesOrder, slug } = Astro.props;
+
+// 시리즈 정보가 있으면 같은 시리즈의 다른 글들을 가져옴
+let seriesInfo = null;
+let prevPost = null;
+let nextPost = null;
+
+if (series) {
+	const seriesNames: Record<string, { name: string; description: string }> = {
+		'backend-cs-fundamentals': {
+			name: '백엔드 개발자를 위한 CS 기초',
+			description: '운영체제, 네트워크, 데이터베이스 등 백엔드 개발에 필수적인 컴퓨터 과학 기초 지식을 다룹니다.',
+		},
+		'database-fundamentals': {
+			name: '데이터베이스 기초',
+			description: '트랜잭션, 인덱스, 쿼리 최적화 등 데이터베이스의 핵심 개념을 정리합니다.',
+		},
+	};
+
+	seriesInfo = seriesNames[series];
+
+	const allPosts = await getCollection('blog');
+	const seriesPosts = allPosts
+		.filter(post => post.data.series === series)
+		.sort((a, b) => (a.data.seriesOrder || 0) - (b.data.seriesOrder || 0));
+
+	const currentIndex = seriesPosts.findIndex(post => post.slug === slug);
+	if (currentIndex > 0) {
+		prevPost = seriesPosts[currentIndex - 1];
+	}
+	if (currentIndex < seriesPosts.length - 1) {
+		nextPost = seriesPosts[currentIndex + 1];
+	}
+}
 ---
 
 <html lang="ko">
@@ -76,6 +111,101 @@ const { title, description, pubDate, updatedDate, heroImage, headings, rawConten
 				font-size: 0.9em;
 				color: rgb(var(--gray));
 			}
+			.series-info {
+				margin: 2em 0;
+				padding: 1.5em;
+				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.08) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.03) 100%);
+				border-left: 4px solid var(--accent);
+				border-radius: 12px;
+			}
+			.series-badge {
+				display: flex;
+				align-items: center;
+				gap: 1em;
+			}
+			.series-icon {
+				font-size: 1.5em;
+			}
+			.series-text {
+				display: flex;
+				align-items: center;
+				gap: 0.5em;
+				flex-wrap: wrap;
+			}
+			.series-link {
+				font-weight: 600;
+				color: var(--accent);
+				text-decoration: none;
+				transition: opacity 0.2s ease;
+			}
+			.series-link:hover {
+				opacity: 0.8;
+			}
+			.series-order {
+				padding: 0.25em 0.6em;
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.15);
+				color: var(--accent);
+				border-radius: 6px;
+				font-size: 0.85em;
+				font-weight: 600;
+			}
+			.series-navigation {
+				margin-top: 4em;
+				padding-top: 2em;
+				border-top: 1px solid rgba(var(--gray-light), 0.5);
+			}
+			.nav-header {
+				font-size: 1.1em;
+				font-weight: 700;
+				color: rgb(var(--black));
+				margin-bottom: 1em;
+			}
+			.nav-links {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1em;
+			}
+			.nav-link {
+				display: flex;
+				flex-direction: column;
+				gap: 0.5em;
+				padding: 1.5em;
+				background: var(--card-bg);
+				border: 1px solid rgba(var(--gray-light), 0.5);
+				border-radius: 12px;
+				text-decoration: none;
+				transition: all 0.3s ease;
+			}
+			.nav-link:not(.disabled):hover {
+				transform: translateY(-2px);
+				box-shadow: 0 8px 24px rgba(var(--gray), 0.12);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+			}
+			.nav-link.disabled {
+				opacity: 0;
+				pointer-events: none;
+			}
+			.nav-link.prev {
+				text-align: left;
+			}
+			.nav-link.next {
+				text-align: right;
+			}
+			.nav-label {
+				font-size: 0.85em;
+				color: rgb(var(--gray));
+				font-weight: 500;
+			}
+			.nav-title {
+				font-weight: 600;
+				color: rgb(var(--black));
+				font-size: 0.95em;
+			}
+			@media (max-width: 640px) {
+				.nav-links {
+					grid-template-columns: 1fr;
+				}
+			}
 		</style>
 	</head>
 
@@ -105,7 +235,46 @@ const { title, description, pubDate, updatedDate, heroImage, headings, rawConten
 						<h1>{title}</h1>
 						<hr />
 					</div>
+
+					{seriesInfo && (
+						<div class="series-info">
+							<div class="series-badge">
+								<span class="series-icon">📚</span>
+								<div class="series-text">
+									<a href={`/series/${series}`} class="series-link">
+										{seriesInfo.name}
+									</a>
+									{seriesOrder && <span class="series-order">#{seriesOrder}</span>}
+								</div>
+							</div>
+						</div>
+					)}
+
 					<slot />
+
+					{(prevPost || nextPost) && (
+						<nav class="series-navigation">
+							<div class="nav-header">시리즈 탐색</div>
+							<div class="nav-links">
+								{prevPost ? (
+									<a href={`/blog/${prevPost.slug}/`} class="nav-link prev">
+										<span class="nav-label">← 이전 글</span>
+										<span class="nav-title">{prevPost.data.title}</span>
+									</a>
+								) : (
+									<div class="nav-link disabled"></div>
+								)}
+								{nextPost ? (
+									<a href={`/blog/${nextPost.slug}/`} class="nav-link next">
+										<span class="nav-label">다음 글 →</span>
+										<span class="nav-title">{nextPost.data.title}</span>
+									</a>
+								) : (
+									<div class="nav-link disabled"></div>
+								)}
+							</div>
+						</nav>
+					)}
 				</div>
 			</article>
 		</main>

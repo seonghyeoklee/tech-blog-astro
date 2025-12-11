@@ -1,0 +1,235 @@
+---
+import { getCollection } from 'astro:content';
+import Analytics from '@vercel/analytics/astro';
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import FormattedDate from '../../components/FormattedDate.astro';
+import { SITE_TITLE } from '../../consts';
+
+export async function getStaticPaths() {
+	const allPosts = await getCollection('blog');
+
+	const seriesInfo: Record<string, { name: string; description: string }> = {
+		'backend-cs-fundamentals': {
+			name: '백엔드 개발자를 위한 CS 기초',
+			description: '운영체제, 네트워크, 데이터베이스 등 백엔드 개발에 필수적인 컴퓨터 과학 기초 지식을 다룹니다.',
+		},
+		'database-fundamentals': {
+			name: '데이터베이스 기초',
+			description: '트랜잭션, 인덱스, 쿼리 최적화 등 데이터베이스의 핵심 개념을 정리합니다.',
+		},
+	};
+
+	const seriesMap = new Map<string, typeof allPosts>();
+
+	allPosts.forEach((post) => {
+		if (post.data.series) {
+			if (!seriesMap.has(post.data.series)) {
+				seriesMap.set(post.data.series, []);
+			}
+			seriesMap.get(post.data.series)!.push(post);
+		}
+	});
+
+	return Array.from(seriesMap.entries()).map(([slug, posts]) => {
+		const sortedPosts = posts.sort((a, b) => (a.data.seriesOrder || 0) - (b.data.seriesOrder || 0));
+		const info = seriesInfo[slug] || { name: slug, description: '' };
+
+		return {
+			params: { slug },
+			props: {
+				series: {
+					slug,
+					...info,
+					posts: sortedPosts,
+				},
+			},
+		};
+	});
+}
+
+const { series } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+	<head>
+		<BaseHead title={`${series.name} - 시리즈 - ${SITE_TITLE}`} description={series.description} />
+		<style>
+			main {
+				width: 960px;
+				max-width: calc(100% - 2em);
+				margin: auto;
+				padding: 3em 1em 4em;
+			}
+			.breadcrumb {
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+				margin-bottom: 2em;
+			}
+			.breadcrumb a {
+				color: rgb(var(--gray));
+				text-decoration: none;
+			}
+			.breadcrumb a:hover {
+				color: var(--accent);
+			}
+			.series-header {
+				margin-bottom: 3em;
+			}
+			h1 {
+				font-size: 2.5em;
+				font-weight: 800;
+				margin-bottom: 0.5em;
+			}
+			.series-description {
+				color: rgb(var(--gray));
+				font-size: 1.1em;
+				line-height: 1.7;
+				margin-bottom: 1.5em;
+			}
+			.series-meta {
+				display: flex;
+				align-items: center;
+				gap: 1.5em;
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+			}
+			.meta-badge {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.4em;
+				padding: 0.4em 0.9em;
+				background: rgba(var(--accent-rgb, 91, 109, 255), 0.1);
+				color: var(--accent);
+				border-radius: 20px;
+				font-weight: 600;
+			}
+
+			.post-list {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+				display: grid;
+				gap: 1.5em;
+			}
+			.post-card {
+				background: var(--card-bg);
+				border: 1px solid rgba(var(--gray-light), 0.5);
+				border-radius: 20px;
+				padding: 2em;
+				transition: all 0.3s ease;
+				position: relative;
+			}
+			.post-card::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 4px;
+				height: 100%;
+				background: linear-gradient(180deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.3) 100%);
+				border-radius: 20px 0 0 20px;
+			}
+			.post-card:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 8px 32px rgba(var(--gray), 0.12);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+			}
+			.post-number {
+				display: inline-block;
+				width: 2.5em;
+				height: 2.5em;
+				background: linear-gradient(135deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.8) 100%);
+				color: white;
+				border-radius: 50%;
+				font-weight: 700;
+				font-size: 1.1em;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				margin-bottom: 1em;
+			}
+			.post-title {
+				font-size: 1.4em;
+				font-weight: 700;
+				margin-bottom: 0.5em;
+			}
+			.post-title a {
+				text-decoration: none;
+				color: rgb(var(--black));
+				transition: color 0.2s ease;
+			}
+			.post-title a:hover {
+				color: var(--accent);
+			}
+			.post-description {
+				color: rgb(var(--gray));
+				line-height: 1.6;
+				margin-bottom: 1em;
+			}
+			.post-meta {
+				display: flex;
+				align-items: center;
+				gap: 1em;
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+			}
+			.post-tags {
+				display: flex;
+				gap: 0.5em;
+				flex-wrap: wrap;
+			}
+			.tag {
+				padding: 0.25em 0.7em;
+				background: rgba(var(--gray-light), 0.3);
+				border-radius: 6px;
+				font-size: 0.85em;
+				font-weight: 500;
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<nav class="breadcrumb">
+				<a href="/series">시리즈</a> / {series.name}
+			</nav>
+
+			<div class="series-header">
+				<h1>{series.name}</h1>
+				<p class="series-description">{series.description}</p>
+				<div class="series-meta">
+					<span class="meta-badge">
+						📝 {series.posts.length}개의 글
+					</span>
+				</div>
+			</div>
+
+			<ul class="post-list">
+				{series.posts.map((post) => (
+					<li class="post-card">
+						<div class="post-number">{post.data.seriesOrder}</div>
+						<h2 class="post-title">
+							<a href={`/blog/${post.id}/`}>{post.data.title}</a>
+						</h2>
+						<p class="post-description">{post.data.description}</p>
+						<div class="post-meta">
+							<FormattedDate date={post.data.pubDate} />
+							{post.data.tags && (
+								<div class="post-tags">
+									{post.data.tags.map((tag) => (
+										<span class="tag">{tag}</span>
+									))}
+								</div>
+							)}
+						</div>
+					</li>
+				))}
+			</ul>
+		</main>
+		<Footer />
+		<Analytics />
+	</body>
+</html>

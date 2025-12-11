@@ -1,0 +1,206 @@
+---
+import { getCollection } from 'astro:content';
+import Analytics from '@vercel/analytics/astro';
+import BaseHead from '../../components/BaseHead.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { SITE_TITLE } from '../../consts';
+
+const allPosts = await getCollection('blog');
+
+// 시리즈별로 그룹핑
+const seriesMap = new Map<string, { posts: typeof allPosts; name: string; description: string }>();
+
+const seriesInfo: Record<string, { name: string; description: string }> = {
+	'backend-cs-fundamentals': {
+		name: '백엔드 개발자를 위한 CS 기초',
+		description: '운영체제, 네트워크, 데이터베이스 등 백엔드 개발에 필수적인 컴퓨터 과학 기초 지식을 다룹니다.',
+	},
+	'database-fundamentals': {
+		name: '데이터베이스 기초',
+		description: '트랜잭션, 인덱스, 쿼리 최적화 등 데이터베이스의 핵심 개념을 정리합니다.',
+	},
+};
+
+allPosts.forEach((post) => {
+	if (post.data.series) {
+		if (!seriesMap.has(post.data.series)) {
+			const info = seriesInfo[post.data.series] || {
+				name: post.data.series,
+				description: '',
+			};
+			seriesMap.set(post.data.series, {
+				posts: [],
+				...info,
+			});
+		}
+		seriesMap.get(post.data.series)!.posts.push(post);
+	}
+});
+
+// 각 시리즈의 포스트를 seriesOrder로 정렬
+seriesMap.forEach((series) => {
+	series.posts.sort((a, b) => (a.data.seriesOrder || 0) - (b.data.seriesOrder || 0));
+});
+
+const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
+	slug,
+	...data,
+}));
+---
+
+<!doctype html>
+<html lang="ko">
+	<head>
+		<BaseHead title={`시리즈 - ${SITE_TITLE}`} description="블로그 글을 주제별 시리즈로 모아봅니다" />
+		<style>
+			main {
+				width: 960px;
+				max-width: calc(100% - 2em);
+				margin: auto;
+				padding: 3em 1em 4em;
+			}
+			h1 {
+				font-size: 2.5em;
+				font-weight: 800;
+				margin-bottom: 0.5em;
+			}
+			.description {
+				color: rgb(var(--gray));
+				font-size: 1.1em;
+				margin-bottom: 3em;
+				line-height: 1.6;
+			}
+			.series-grid {
+				display: grid;
+				gap: 2em;
+			}
+			.series-card {
+				background: var(--card-bg);
+				border: 1px solid rgba(var(--gray-light), 0.5);
+				border-radius: 20px;
+				padding: 2.5em;
+				transition: all 0.3s ease;
+				position: relative;
+				overflow: hidden;
+			}
+			.series-card::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 4px;
+				height: 100%;
+				background: linear-gradient(180deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.3) 100%);
+			}
+			.series-card:hover {
+				transform: translateY(-4px);
+				box-shadow: 0 12px 40px rgba(var(--gray), 0.15);
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
+			}
+			.series-header {
+				margin-bottom: 1.5em;
+			}
+			.series-name {
+				font-size: 1.8em;
+				font-weight: 700;
+				margin-bottom: 0.5em;
+			}
+			.series-name a {
+				text-decoration: none;
+				color: rgb(var(--black));
+				transition: color 0.2s ease;
+			}
+			.series-name a:hover {
+				color: var(--accent);
+			}
+			.series-description {
+				color: rgb(var(--gray));
+				line-height: 1.7;
+				margin-bottom: 1.5em;
+			}
+			.series-meta {
+				display: flex;
+				align-items: center;
+				gap: 1.5em;
+				font-size: 0.9em;
+				color: rgb(var(--gray));
+				margin-bottom: 1.5em;
+			}
+			.meta-item {
+				display: flex;
+				align-items: center;
+				gap: 0.4em;
+			}
+			.post-list {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.post-item {
+				display: flex;
+				align-items: baseline;
+				gap: 0.8em;
+				padding: 0.75em 0;
+				border-bottom: 1px solid rgba(var(--gray-light), 0.3);
+			}
+			.post-item:last-child {
+				border-bottom: none;
+			}
+			.post-number {
+				font-weight: 700;
+				color: var(--accent);
+				min-width: 2em;
+			}
+			.post-item a {
+				text-decoration: none;
+				color: rgb(var(--black));
+				font-weight: 500;
+				transition: color 0.2s ease;
+				flex: 1;
+			}
+			.post-item a:hover {
+				color: var(--accent);
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<h1>📚 시리즈</h1>
+			<p class="description">
+				주제별로 묶어서 체계적으로 읽을 수 있는 글 모음입니다.<br />
+				유튜브 재생목록처럼 순서대로 읽으면 더 이해하기 쉽습니다.
+			</p>
+
+			<div class="series-grid">
+				{seriesArray.map((series) => (
+					<article class="series-card">
+						<div class="series-header">
+							<h2 class="series-name">
+								<a href={`/series/${series.slug}`}>{series.name}</a>
+							</h2>
+							<p class="series-description">{series.description}</p>
+							<div class="series-meta">
+								<span class="meta-item">
+									📝 {series.posts.length}개의 글
+								</span>
+							</div>
+						</div>
+
+						<ul class="post-list">
+							{series.posts.map((post) => (
+								<li class="post-item">
+									<span class="post-number">{post.data.seriesOrder}.</span>
+									<a href={`/blog/${post.id}/`}>{post.data.title}</a>
+								</li>
+							))}
+						</ul>
+					</article>
+				))}
+			</div>
+		</main>
+		<Footer />
+		<Analytics />
+	</body>
+</html>

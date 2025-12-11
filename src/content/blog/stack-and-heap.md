@@ -3,6 +3,8 @@ title: '스택과 힙 - 메모리 구조 이해하기'
 description: '스택과 힙의 차이, 메모리 할당 방식, 그리고 왜 중요한지 정리했습니다'
 pubDate: 'Jan 12 2025'
 tags: ['CS', 'OS', 'Java']
+series: 'backend-cs-fundamentals'
+seriesOrder: 4
 ---
 
 Java에서 StackOverflowError나 OutOfMemoryError를 만나본 적 있을 겁니다. 이 에러들을 이해하려면 스택과 힙이 어떻게 동작하는지 알아야 합니다. 메모리 구조를 이해하면 성능 튜닝이나 메모리 누수 디버깅에도 도움이 됩니다.
