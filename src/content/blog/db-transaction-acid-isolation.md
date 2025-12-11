@@ -46,6 +46,46 @@ quiz:
       - "모든 문제 발생 안 함"
     correctAnswer: 2
     explanation: "REPEATABLE READ에서는 트랜잭션 시작 시점의 스냅샷을 계속 보기 때문에 Dirty Read와 Non-Repeatable Read는 방지됩니다. 하지만 새로 INSERT된 row는 보일 수 있는 Phantom Read 문제가 발생할 수 있습니다."
+  - question: "트랜잭션에서 Durability(지속성)를 보장하는 메커니즘은?"
+    options:
+      - "Undo Log"
+      - "Buffer Pool"
+      - "Redo Log"
+      - "Query Cache"
+    correctAnswer: 2
+    explanation: "데이터베이스는 Redo Log를 사용하여 지속성을 보장합니다. 트랜잭션 커밋 시 Redo Log에 변경 내용을 기록하고, 장애 발생 시 Redo Log를 읽어서 커밋된 데이터를 복구합니다."
+  - question: "다음 중 격리 수준이 가장 높은 것은?"
+    options:
+      - "READ UNCOMMITTED"
+      - "READ COMMITTED"
+      - "REPEATABLE READ"
+      - "SERIALIZABLE"
+    correctAnswer: 3
+    explanation: "SERIALIZABLE이 가장 높은 격리 수준으로, 모든 이상 현상(Dirty Read, Non-Repeatable Read, Phantom Read)을 방지합니다. 하지만 동시성이 가장 낮아 성능이 떨어질 수 있습니다."
+  - question: "트랜잭션이 롤백될 때 원래 상태로 되돌리기 위해 사용되는 것은?"
+    options:
+      - "Redo Log의 이전 값"
+      - "Undo Log의 이전 값"
+      - "Binary Log의 역순 실행"
+      - "Buffer Pool의 스냅샷"
+    correctAnswer: 1
+    explanation: "ROLLBACK 시 Undo Log에 기록된 이전 값을 읽어서 원래 상태로 되돌립니다. Undo Log는 트랜잭션이 변경하기 전의 원본 데이터를 보관합니다."
+  - question: "@Transactional 애노테이션에서 readOnly=true 옵션의 효과는?"
+    options:
+      - "데이터베이스 읽기 전용 모드로 전환"
+      - "SELECT 쿼리만 실행 가능하도록 제한"
+      - "변경 감지(Dirty Checking) 비활성화로 성능 향상"
+      - "트랜잭션을 생성하지 않음"
+    correctAnswer: 2
+    explanation: "readOnly=true는 JPA의 변경 감지(Dirty Checking)를 비활성화하여 성능을 향상시킵니다. 데이터베이스 레벨에서도 최적화 힌트를 제공하지만, 실제 쓰기 작업을 물리적으로 막지는 않습니다."
+  - question: "다음 중 Non-Repeatable Read 문제가 발생하는 상황은?"
+    options:
+      - "커밋되지 않은 데이터를 읽는 경우"
+      - "같은 SELECT를 두 번 실행했는데 결과가 다른 경우"
+      - "새로 INSERT된 row가 보이는 경우"
+      - "데드락이 발생하는 경우"
+    correctAnswer: 1
+    explanation: "Non-Repeatable Read는 같은 트랜잭션 내에서 동일한 SELECT를 두 번 실행했을 때 다른 결과가 나오는 현상입니다. READ COMMITTED 격리 수준에서 발생할 수 있습니다."
 ---
 
 예를 들어, `@Transactional`을 단순히 "다 함께 성공하거나 실패하는 것"으로만 이해하고 사용하는 경우가 있습니다. 그러다 프로덕션에서 동시 주문 처리 중 재고가 마이너스로 떨어지는 버그가 발생할 수 있습니다. 원인은 격리 수준입니다. READ COMMITTED에서는 두 트랜잭션이 같은 재고를 동시에 읽을 수 있기 때문입니다.

@@ -16,10 +16,19 @@ const { quizzes } = Astro.props;
 if (!quizzes || quizzes.length === 0) {
 	return null;
 }
+
+// 랜덤하게 5개 선택 (문제 은행에서)
+function getRandomQuizzes(allQuizzes: QuizItem[], count: number = 5): QuizItem[] {
+	const shuffled = [...allQuizzes].sort(() => Math.random() - 0.5);
+	return shuffled.slice(0, Math.min(count, allQuizzes.length));
+}
+
+const selectedQuizzes = getRandomQuizzes(quizzes, 5);
+const totalQuizzes = selectedQuizzes.length;
 ---
 
 <!-- 모달 오버레이 -->
-<div class="quiz-modal-overlay" id="quiz-modal-overlay">
+<div class="quiz-modal-overlay" id="quiz-modal-overlay" data-all-quizzes={JSON.stringify(quizzes)}>
 	<div class="quiz-modal">
 		<button class="quiz-modal-close" id="quiz-modal-close" aria-label="퀴즈 닫기">
 			<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -35,7 +44,7 @@ if (!quizzes || quizzes.length === 0) {
 	</div>
 
 	{
-		quizzes.map((quiz, quizIndex) => (
+		selectedQuizzes.map((quiz, quizIndex) => (
 			<div class="quiz-item" data-quiz-index={quizIndex}>
 				<div class="quiz-question">
 					<span class="question-number">Q{quizIndex + 1}.</span>
@@ -446,7 +455,11 @@ if (!quizzes || quizzes.length === 0) {
 	// 퀴즈 상태 관리
 	let answeredQuizzes = new Set<number>();
 	let score = 0;
-	const totalQuizzes = document.querySelectorAll('.quiz-item').length;
+	let totalQuizzes = document.querySelectorAll('.quiz-item').length;
+
+	// 모든 퀴즈 데이터 가져오기
+	const modalOverlay = document.getElementById('quiz-modal-overlay');
+	const allQuizzes = JSON.parse(modalOverlay?.dataset.allQuizzes || '[]');
 
 	// 옵션 클릭 핸들러
 	function handleOptionClick(event: Event) {
@@ -503,21 +516,84 @@ if (!quizzes || quizzes.length === 0) {
 		}
 	}
 
+	// 랜덤 퀴즈 선택
+	function getRandomQuizzes(allQuizzes: any[], count: number = 5) {
+		const shuffled = [...allQuizzes].sort(() => Math.random() - 0.5);
+		return shuffled.slice(0, Math.min(count, allQuizzes.length));
+	}
+
+	// 퀴즈 HTML 생성
+	function renderQuizzes(quizzes: any[]) {
+		const container = document.querySelector('.quiz-container');
+		const quizHeader = container?.querySelector('.quiz-header');
+		const quizResult = container?.querySelector('.quiz-result');
+
+		if (!container || !quizHeader || !quizResult) return;
+
+		// 기존 퀴즈 아이템 제거
+		container.querySelectorAll('.quiz-item').forEach(item => item.remove());
+
+		// 새 퀴즈 렌더링
+		quizzes.forEach((quiz, quizIndex) => {
+			const quizItem = document.createElement('div');
+			quizItem.className = 'quiz-item';
+			quizItem.dataset.quizIndex = String(quizIndex);
+
+			const questionDiv = document.createElement('div');
+			questionDiv.className = 'quiz-question';
+			questionDiv.innerHTML = `
+				<span class="question-number">Q${quizIndex + 1}.</span>
+				<span class="question-text">${quiz.question}</span>
+			`;
+
+			const optionsDiv = document.createElement('div');
+			optionsDiv.className = 'quiz-options';
+
+			quiz.options.forEach((option: string, optionIndex: number) => {
+				const button = document.createElement('button');
+				button.className = 'quiz-option';
+				button.dataset.quizIndex = String(quizIndex);
+				button.dataset.optionIndex = String(optionIndex);
+				button.dataset.correct = String(optionIndex === quiz.correctAnswer);
+				button.innerHTML = `
+					<span class="option-label">${String.fromCharCode(65 + optionIndex)}.</span>
+					<span class="option-text">${option}</span>
+				`;
+				button.addEventListener('click', handleOptionClick);
+				optionsDiv.appendChild(button);
+			});
+
+			quizItem.appendChild(questionDiv);
+			quizItem.appendChild(optionsDiv);
+
+			if (quiz.explanation) {
+				const explanationDiv = document.createElement('div');
+				explanationDiv.className = 'quiz-explanation';
+				explanationDiv.dataset.quizIndex = String(quizIndex);
+				explanationDiv.innerHTML = `
+					<div class="explanation-icon">💡</div>
+					<div class="explanation-text">${quiz.explanation}</div>
+				`;
+				quizItem.appendChild(explanationDiv);
+			}
+
+			container.insertBefore(quizItem, quizResult);
+		});
+
+		// totalQuizzes 업데이트
+		totalQuizzes = quizzes.length;
+	}
+
 	// 다시 풀기
 	function resetQuiz() {
+		// 새로운 랜덤 퀴즈 선택 및 렌더링
+		const newQuizzes = getRandomQuizzes(allQuizzes, 5);
+		renderQuizzes(newQuizzes);
+
 		// 상태 초기화
 		answeredQuizzes.clear();
 		score = 0;
 		updateScore();
-
-		// UI 초기화
-		document.querySelectorAll('.quiz-option').forEach((option) => {
-			option.classList.remove('selected', 'correct', 'incorrect', 'disabled');
-		});
-
-		document.querySelectorAll('.quiz-explanation').forEach((explanation) => {
-			explanation.classList.remove('show');
-		});
 
 		// 첫 번째 퀴즈로 스크롤
 		const firstQuiz = document.querySelector('.quiz-item');
