@@ -338,21 +338,6 @@ if (series) {
 
 					<slot />
 
-					{quiz && quiz.length > 0 && (
-						<>
-							<div class="quiz-trigger-container">
-								<button class="quiz-trigger-btn" id="quiz-trigger-btn">
-									<span class="quiz-icon">📝</span>
-									<span class="quiz-text">
-										<strong>이해도 확인 퀴즈</strong>
-										<small>{quiz.length}문항</small>
-									</span>
-								</button>
-							</div>
-							<Quiz quizzes={quiz} />
-						</>
-					)}
-
 					{(prevPost || nextPost) && (
 						<nav class="series-navigation">
 							<div class="nav-header">시리즈 탐색</div>
@@ -375,6 +360,21 @@ if (series) {
 								)}
 							</div>
 						</nav>
+					)}
+
+					{quiz && quiz.length > 0 && (
+						<>
+							<div class="quiz-trigger-container">
+								<button class="quiz-trigger-btn" id="quiz-trigger-btn">
+									<span class="quiz-icon">📝</span>
+									<span class="quiz-text">
+										<strong>복습하기</strong>
+										<small>{quiz.length}문항</small>
+									</span>
+								</button>
+							</div>
+							<Quiz quizzes={quiz} />
+						</>
 					)}
 				</div>
 			</article>
