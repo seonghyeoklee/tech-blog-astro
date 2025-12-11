@@ -7,7 +7,7 @@ series: 'backend-cs-fundamentals'
 seriesOrder: 4
 ---
 
-프로덕션에서 `OutOfMemoryError: Java heap space`를 만난 적이 있습니다. 힙 크기를 늘리니까 해결됐지만, 왜 발생했는지는 몰랐습니다. 나중에 알고 보니 메모리 누수였습니다. 스택과 힙을 제대로 이해했다면 더 빨리 해결할 수 있었을 겁니다.
+프로덕션에서 `OutOfMemoryError: Java heap space`가 발생하는 경우가 있습니다. 힙 크기를 늘리면 당장은 해결되지만, 근본 원인을 파악하지 못하면 같은 문제가 반복됩니다. 메모리 누수가 원인인 경우가 많습니다. 스택과 힙을 제대로 이해하면 이런 문제를 더 빨리 해결할 수 있습니다.
 
 ## 메모리 영역 구분
 
@@ -161,7 +161,7 @@ while (true) {
 Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
 ```
 
-실제로 겪은 사례:
+실무에서 발생하는 사례:
 - 캐시에 데이터를 계속 쌓기만 하고 삭제 안 함 → OOM
 - 대용량 파일을 메모리에 전부 로드 → OOM
 - DB에서 수백만 건을 한 번에 조회 → OOM
@@ -265,7 +265,7 @@ jmap -dump:format=b,file=heap.bin <pid>
 # 어떤 객체가 메모리를 많이 쓰는지 확인
 ```
 
-실제 사례: 캐시에 쌓인 데이터가 100만 건. `WeakHashMap`으로 변경해서 GC가 자동으로 정리하도록 수정.
+예를 들어, 캐시에 쌓인 데이터가 100만 건이 되는 경우가 있습니다. `WeakHashMap`으로 변경하면 GC가 자동으로 정리합니다.
 
 **GC 튜닝**
 
@@ -282,11 +282,11 @@ java -XX:+UseZGC -jar myapp.jar
 
 API 서버는 보통 G1 GC가 적당합니다. 짧은 pause time과 좋은 처리량의 균형을 맞춥니다.
 
-## 실무에서 겪은 메모리 문제
+## 실무 예시
 
-**문제 1: OutOfMemoryError - Heap**
+**예시 1: OutOfMemoryError - Heap**
 
-대용량 Excel 다운로드에서 OOM 발생.
+대용량 Excel 다운로드에서 OOM이 발생하는 경우입니다.
 
 ```java
 // 문제 코드
@@ -294,7 +294,7 @@ List<Data> allData = dataRepository.findAll();  // 100만 건을 메모리에 �
 return excelService.generate(allData);           // OOM!
 ```
 
-해결: 스트리밍 방식으로 변경.
+해결 방법: 스트리밍 방식으로 변경.
 
 ```java
 // 개선 코드
@@ -303,9 +303,9 @@ dataRepository.findAll().forEach(data -> {
 });
 ```
 
-**문제 2: StackOverflowError**
+**예시 2: StackOverflowError**
 
-깊은 재귀 호출.
+깊은 재귀 호출이 문제가 되는 경우입니다.
 
 ```java
 public class TreeService {
@@ -318,9 +318,9 @@ public class TreeService {
 // 트리 깊이 10,000 → StackOverflowError
 ```
 
-해결: 반복문으로 변경하거나 스택 크기 증가.
+해결 방법: 반복문으로 변경하거나 스택 크기 증가.
 
-**문제 3: 메모리 누수**
+**예시 3: 메모리 누수**
 
 ```java
 @Service
@@ -333,7 +333,7 @@ public class CacheService {
 }
 ```
 
-캐시가 무한정 커져서 OOM 발생. `LRUCache`나 `@Cacheable`로 변경.
+캐시가 무한정 커져서 OOM이 발생할 수 있습니다. `LRUCache`나 `@Cacheable`로 변경하면 해결됩니다.
 
 ## 정리
 

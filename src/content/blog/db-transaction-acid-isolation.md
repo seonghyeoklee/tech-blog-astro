@@ -7,7 +7,7 @@ series: 'database-fundamentals'
 seriesOrder: 1
 ---
 
-신입 때 `@Transactional`을 그냥 붙였습니다. "트랜잭션은 다 함께 성공하거나 실패하는 거"라고만 알았습니다. 그러다 프로덕션에서 동시 주문 처리 중 재고가 마이너스로 떨어지는 버그를 겪었습니다. 원인은 격리 수준이었습니다. READ COMMITTED에서는 두 트랜잭션이 같은 재고를 동시에 읽을 수 있었던 겁니다.
+예를 들어, `@Transactional`을 단순히 "다 함께 성공하거나 실패하는 것"으로만 이해하고 사용하는 경우가 있습니다. 그러다 프로덕션에서 동시 주문 처리 중 재고가 마이너스로 떨어지는 버그가 발생할 수 있습니다. 원인은 격리 수준입니다. READ COMMITTED에서는 두 트랜잭션이 같은 재고를 동시에 읽을 수 있기 때문입니다.
 
 ## 트랜잭션이 필요한 이유
 
@@ -183,7 +183,7 @@ public void processOrder(Long productId) {
 
 같은 SELECT를 두 번 실행했는데 결과가 다릅니다. 이게 **Non-Repeatable Read**입니다.
 
-실제 겪은 버그: 주문 수량 검증 시 재고를 확인했는데, 실제 차감할 때는 다른 트랜잭션이 먼저 차감해버려서 재고가 마이너스로 떨어진 적이 있습니다.
+실무 예시: 주문 수량 검증 시 재고를 확인했는데, 실제 차감할 때는 다른 트랜잭션이 먼저 차감해버려서 재고가 마이너스로 떨어지는 경우가 있습니다.
 
 ### REPEATABLE READ
 
@@ -273,9 +273,9 @@ public Product getProduct(Long id) {
 
 MySQL InnoDB는 REPEATABLE READ에서 Gap Lock으로 Phantom Read까지 방지합니다.
 
-## 실무에서 겪은 트랜잭션 문제
+## 실무 예시
 
-**문제 1: 재고 동시성 문제**
+**예시 1: 재고 동시성 문제**
 
 ```java
 // 문제 코드
@@ -289,9 +289,9 @@ public void purchase(Long productId, int quantity) {
 }
 ```
 
-READ COMMITTED에서 두 트랜잭션이 동시에 재고 100을 읽고, 각각 50씩 차감하면 최종 재고가 0이 아니라 50이 됩니다.
+READ COMMITTED에서 두 트랜잭션이 동시에 재고 100을 읽고, 각각 50씩 차감하면 최종 재고가 0이 아니라 50이 되는 문제가 발생합니다.
 
-해결 1: 비관적 락(Pessimistic Lock)
+해결 방법 1: 비관적 락(Pessimistic Lock)
 
 ```java
 @Transactional
@@ -307,7 +307,7 @@ public void purchase(Long productId, int quantity) {
 }
 ```
 
-해결 2: 낙관적 락(Optimistic Lock)
+해결 방법 2: 낙관적 락(Optimistic Lock)
 
 ```java
 @Entity
@@ -328,7 +328,7 @@ public void purchase(Long productId, int quantity) {
 }
 ```
 
-**문제 2: 데드락**
+**예시 2: 데드락**
 
 ```
 트랜잭션 A: product 1 잠금 → product 2 잠금 시도
@@ -344,9 +344,9 @@ SHOW ENGINE INNODB STATUS;
 ERROR 1213 (40001): Deadlock found when trying to get lock
 ```
 
-해결: 락 순서를 일관되게 유지. Product ID 순서대로 락을 획득.
+해결 방법: 락 순서를 일관되게 유지. Product ID 순서대로 락을 획득.
 
-**문제 3: 긴 트랜잭션**
+**예시 3: 긴 트랜잭션**
 
 ```java
 @Transactional
@@ -360,9 +360,9 @@ public void processOrder(Order order) {
 }
 ```
 
-5초 동안 트랜잭션이 유지되면서 DB 커넥션과 락을 잡고 있습니다. 다른 요청들이 대기합니다.
+5초 동안 트랜잭션이 유지되면서 DB 커넥션과 락을 잡고 있습니다. 다른 요청들이 대기하게 됩니다.
 
-해결: 트랜잭션을 최소화.
+해결 방법: 트랜잭션을 최소화.
 
 ```java
 @Transactional
