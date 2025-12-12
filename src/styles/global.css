@@ -4,6 +4,17 @@
   License MIT: https://github.com/HermanMartinus/bearblog/blob/master/LICENSE.md
  */
 
+/* 스크롤바로 인한 레이아웃 시프트 방지 */
+html {
+	scrollbar-gutter: stable;
+}
+
+/* View Transitions 애니메이션 제거 (즉시 전환) */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation-duration: 0ms;
+}
+
 :root {
 	--accent: #2337ff;
 	--accent-dark: #000d8a;
