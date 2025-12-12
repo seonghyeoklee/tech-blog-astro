@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { ViewTransitions } from 'astro:transitions';
 import Analytics from '@vercel/analytics/astro';
 import BaseHead from '../../components/BaseHead.astro';
 import Header from '../../components/Header.astro';
@@ -29,6 +30,7 @@ Object.values(categories).forEach(cat => {
 
 <html lang="ko">
 	<head>
+		<ViewTransitions />
 		<BaseHead title={`Wiki - ${SITE_TITLE}`} description="개발 용어 사전" />
 		<StructuredData
 			type="website"

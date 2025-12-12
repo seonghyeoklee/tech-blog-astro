@@ -1,5 +1,6 @@
 ---
 import { getCollection } from 'astro:content';
+import { ViewTransitions } from 'astro:transitions';
 import Analytics from '@vercel/analytics/astro';
 import BaseHead from '../../components/BaseHead.astro';
 import Header from '../../components/Header.astro';
@@ -70,6 +71,7 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 <!doctype html>
 <html lang="ko">
 	<head>
+		<ViewTransitions />
 		<BaseHead title={`시리즈 - ${SITE_TITLE}`} description="블로그 글을 주제별 시리즈로 모아봅니다" />
 		<style>
 			main {
