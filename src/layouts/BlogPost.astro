@@ -20,10 +20,8 @@ type Props = CollectionEntry<'blog'>['data'] & {
 
 const { title, description, pubDate, updatedDate, heroImage, headings, rawContent, series, seriesOrder, slug, quiz } = Astro.props;
 
-// 시리즈 정보가 있으면 같은 시리즈의 다른 글들을 가져옴
+// 시리즈 정보가 있으면 표시
 let seriesInfo = null;
-let prevPost = null;
-let nextPost = null;
 
 if (series) {
 	const seriesNames: Record<string, { name: string; description: string }> = {
@@ -42,19 +40,6 @@ if (series) {
 	};
 
 	seriesInfo = seriesNames[series];
-
-	const allPosts = await getCollection('blog');
-	const seriesPosts = allPosts
-		.filter(post => post.data.series === series)
-		.sort((a, b) => (a.data.seriesOrder || 0) - (b.data.seriesOrder || 0));
-
-	const currentIndex = seriesPosts.findIndex(post => post.slug === slug);
-	if (currentIndex > 0) {
-		prevPost = seriesPosts[currentIndex - 1];
-	}
-	if (currentIndex < seriesPosts.length - 1) {
-		nextPost = seriesPosts[currentIndex + 1];
-	}
 }
 ---
 
@@ -171,63 +156,6 @@ if (series) {
 				font-size: 0.85em;
 				font-weight: 600;
 			}
-			.series-navigation {
-				margin-top: 4em;
-				padding-top: 2em;
-				border-top: 1px solid rgba(var(--gray-light), 0.5);
-			}
-			.nav-header {
-				font-size: 1.1em;
-				font-weight: 700;
-				color: rgb(var(--black));
-				margin-bottom: 1em;
-			}
-			.nav-links {
-				display: grid;
-				grid-template-columns: 1fr 1fr;
-				gap: 1em;
-			}
-			.nav-link {
-				display: flex;
-				flex-direction: column;
-				gap: 0.5em;
-				padding: 1.5em;
-				background: var(--card-bg);
-				border: 1px solid rgba(var(--gray-light), 0.5);
-				border-radius: 12px;
-				text-decoration: none;
-				transition: all 0.3s ease;
-			}
-			.nav-link:not(.disabled):hover {
-				transform: translateY(-2px);
-				box-shadow: 0 8px 24px rgba(var(--gray), 0.12);
-				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.3);
-			}
-			.nav-link.disabled {
-				opacity: 0;
-				pointer-events: none;
-			}
-			.nav-link.prev {
-				text-align: left;
-			}
-			.nav-link.next {
-				text-align: right;
-			}
-			.nav-label {
-				font-size: 0.85em;
-				color: rgb(var(--gray));
-				font-weight: 500;
-			}
-			.nav-title {
-				font-weight: 600;
-				color: rgb(var(--black));
-				font-size: 0.95em;
-			}
-			@media (max-width: 640px) {
-				.nav-links {
-					grid-template-columns: 1fr;
-				}
-			}
 		</style>
 	</head>
 
@@ -273,30 +201,6 @@ if (series) {
 					)}
 
 					<slot />
-
-					{(prevPost || nextPost) && (
-						<nav class="series-navigation">
-							<div class="nav-header">시리즈 탐색</div>
-							<div class="nav-links">
-								{prevPost ? (
-									<a href={`/blog/${prevPost.slug}/`} class="nav-link prev">
-										<span class="nav-label">← 이전 글</span>
-										<span class="nav-title">{prevPost.data.title}</span>
-									</a>
-								) : (
-									<div class="nav-link disabled"></div>
-								)}
-								{nextPost ? (
-									<a href={`/blog/${nextPost.slug}/`} class="nav-link next">
-										<span class="nav-label">다음 글 →</span>
-										<span class="nav-title">{nextPost.data.title}</span>
-									</a>
-								) : (
-									<div class="nav-link disabled"></div>
-								)}
-							</div>
-						</nav>
-					)}
 				</div>
 			</article>
 		</main>
