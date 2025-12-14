@@ -10,14 +10,31 @@ import { SITE_TITLE } from '../../consts';
 export async function getStaticPaths() {
 	const allPosts = await getCollection('blog');
 
-	const seriesInfo: Record<string, { name: string; description: string }> = {
+	const seriesInfo: Record<string, { name: string; description: string; icon: string }> = {
 		'operating-system-fundamentals': {
-			name: '운영체제 기초',
-			description: '프로세스, 스레드, 메모리 관리 등 운영체제의 핵심 개념을 백엔드 개발자 관점에서 정리합니다.',
+			name: '운영체제',
+			icon: '🖥️',
+			description: '백엔드 개발자에게 꼭 필요한 CS 전공 기초! 프로세스, 스레드, 메모리 관리 등 운영체제의 핵심 개념을 정리합니다.',
 		},
 		'database-fundamentals': {
-			name: '데이터베이스 기초',
-			description: '트랜잭션, 인덱스, 쿼리 최적화 등 데이터베이스의 핵심 개념을 정리합니다.',
+			name: '데이터베이스',
+			icon: '🗄️',
+			description: '백엔드 개발자에게 꼭 필요한 CS 전공 기초! 트랜잭션, 인덱스, 쿼리 최적화 등 데이터베이스 핵심 개념을 정리합니다.',
+		},
+		'network-fundamentals': {
+			name: '네트워크',
+			icon: '🌐',
+			description: '백엔드 개발자에게 꼭 필요한 CS 전공 기초! TCP/IP, HTTP, DNS 등 네트워크의 핵심 개념을 정리합니다.',
+		},
+		'java-fundamentals': {
+			name: 'Java 심화',
+			icon: '☕',
+			description: 'JVM, GC, 동시성 등 Java 백엔드 개발자가 알아야 할 심화 개념을 정리합니다.',
+		},
+		'spring-fundamentals': {
+			name: 'Spring 핵심',
+			icon: '🌱',
+			description: 'IoC, AOP, 트랜잭션 관리 등 Spring Framework의 핵심 동작 원리를 파헤칩니다.',
 		},
 	};
 
@@ -34,7 +51,7 @@ export async function getStaticPaths() {
 
 	const paths = Array.from(seriesMap.entries()).map(([slug, posts]) => {
 		const sortedPosts = posts.sort((a, b) => (a.data.seriesOrder || 0) - (b.data.seriesOrder || 0));
-		const info = seriesInfo[slug] || { name: slug, description: '' };
+		const info = seriesInfo[slug] || { name: slug, description: '', icon: '📖' };
 
 		return {
 			params: { slug },
@@ -280,7 +297,7 @@ const { series } = Astro.props;
 
 			<div class="series-header">
 				<div class="series-info">
-					<h1>{series.name}</h1>
+					<h1>{series.icon} {series.name}</h1>
 					<p class="series-description">{series.description}</p>
 				</div>
 				<div class="series-meta">
