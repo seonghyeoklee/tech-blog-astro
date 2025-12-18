@@ -458,8 +458,453 @@ public void processOrder(Order order) {
 }
 ```
 
+## 고급 트랜잭션 메커니즘
+
+기본 격리 수준 외에도 복잡한 시나리오를 처리하는 다양한 메커니즘이 있습니다.
+
+### Savepoint (부분 롤백)
+
+**특징:**
+- 트랜잭션 중간에 체크포인트 생성
+- 전체가 아닌 특정 지점까지만 롤백 가능
+- 복잡한 트랜잭션에서 부분 실패 처리
+
+```sql
+-- MySQL
+BEGIN;
+
+INSERT INTO orders (user_id, amount) VALUES (1, 10000);
+SAVEPOINT sp1;
+
+INSERT INTO order_items (order_id, product_id) VALUES (100, 1);
+SAVEPOINT sp2;
+
+INSERT INTO payment (order_id, amount) VALUES (100, 10000);
+-- payment 실패 시
+
+ROLLBACK TO SAVEPOINT sp2;  -- payment만 취소, order와 order_items는 유지
+-- 또는
+ROLLBACK TO SAVEPOINT sp1;  -- order_items, payment 취소, order만 유지
+
+COMMIT;
+```
+
+```java
+// Spring에서 Savepoint 사용
+@Transactional
+public void createOrderWithSavepoint(Order order) {
+    orderRepository.save(order);
+
+    Object savepoint = TransactionAspectSupport.currentTransactionStatus()
+        .createSavepoint();
+
+    try {
+        paymentService.processPayment(order);
+    } catch (PaymentException e) {
+        // 결제 실패 시 결제만 롤백
+        TransactionAspectSupport.currentTransactionStatus()
+            .rollbackToSavepoint(savepoint);
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**: 부분 실패 처리, 복잡한 로직 관리 용이
+- **단점**: 코드 복잡도 증가, Savepoint 관리 오버헤드
+
+### Two-Phase Locking (2PL)
+
+**특징:**
+- 락 획득 단계(Growing Phase)와 락 해제 단계(Shrinking Phase) 분리
+- SERIALIZABLE 격리 수준의 구현 방식
+- 데드락 가능성 존재
+
+```
+Growing Phase (락 획득만 가능):
+  트랜잭션 시작 → 필요한 데이터에 락 획득 → 모든 락 획득 완료
+
+Shrinking Phase (락 해제만 가능):
+  첫 번째 락 해제 → 나머지 락 순차 해제 → 트랜잭션 종료
+```
+
+**Strict 2PL** (실제 DB가 사용):
+- 모든 락을 COMMIT/ROLLBACK 시점까지 유지
+- 중간에 락 해제 금지
+
+```java
+// Strict 2PL 예시 (개념)
+BEGIN;
+  SELECT ... FOR UPDATE;  -- 락 획득
+  UPDATE ...;             -- 락 유지
+  INSERT ...;             -- 락 유지
+  // 모든 락을 계속 유지
+COMMIT;                    -- 이 시점에 모든 락 해제
+```
+
+**트레이드오프:**
+- **장점**: SERIALIZABLE 보장, 일관성 유지
+- **단점**: 동시성 저하, 데드락 가능성, 락 대기 시간 증가
+
+### MVCC (Multi-Version Concurrency Control) 상세
+
+InnoDB의 REPEATABLE READ 구현 원리입니다.
+
+```
+실제 데이터:
+  id | name  | version | trx_id
+  ───────────────────────────────
+  1  | Alice | v3      | 103
+
+Undo Log 버전 체인:
+  v3 (trx_id=103): Alice
+   ↑
+  v2 (trx_id=102): Bob
+   ↑
+  v1 (trx_id=101): Charlie
+```
+
+```java
+// 트랜잭션 T1 (trx_id=100, 시작 시점)
+@Transactional
+public void readData() {
+    // T1의 Read View: 100 이전 버전만 보임
+    User user = userRepository.findById(1);  // "Charlie" (v1)
+
+    // 다른 트랜잭션들이 v2, v3 생성
+
+    User userAgain = userRepository.findById(1);  // 여전히 "Charlie" (v1)
+    // → 일관된 스냅샷
+}
+
+// 트랜잭션 T2 (trx_id=104, 나중 시작)
+@Transactional
+public void readDataLater() {
+    // T2의 Read View: 104 이전 버전 보임
+    User user = userRepository.findById(1);  // "Alice" (v3)
+}
+```
+
+**Read View 생성 규칙:**
+- 트랜잭션 시작 시점에 활성 트랜잭션 ID 목록 스냅샷
+- 이후 Undo Log에서 적절한 버전 선택
+
+**트레이드오프:**
+- **장점**: 읽기와 쓰기가 서로 블록하지 않음, 높은 동시성
+- **단점**: Undo Log 관리 오버헤드, 오래된 트랜잭션 시 Undo Log 비대화
+
+### 락 전략 비교
+
+| 락 타입 | 범위 | 동시성 | 사용 사례 |
+|---------|------|--------|----------|
+| **Row Lock** | 행 단위 | 높음 | 일반적인 UPDATE, DELETE |
+| **Gap Lock** | 레코드 사이 간격 | 중간 | Phantom Read 방지 |
+| **Next-Key Lock** | Row + Gap | 중간 | REPEATABLE READ 범위 검색 |
+| **Table Lock** | 테이블 전체 | 낮음 | DDL, 대량 데이터 변경 |
+| **Intention Lock** | 계층적 락 | - | Table Lock과 Row Lock 조정 |
+
+```sql
+-- Row Lock
+SELECT * FROM product WHERE id = 1 FOR UPDATE;  -- 1번 행만 잠금
+
+-- Gap Lock (10과 20 사이)
+SELECT * FROM product WHERE id BETWEEN 10 AND 20 FOR UPDATE;
+
+-- Table Lock
+LOCK TABLES product WRITE;  -- 전체 테이블 잠금
+```
+
+## 분산 환경의 트랜잭션
+
+단일 DB를 넘어서는 분산 시스템에서의 트랜잭션 관리입니다.
+
+### 1단계: Two-Phase Commit (2PC)
+
+**특징:**
+- 분산 트랜잭션의 ACID 보장
+- Coordinator가 참여자들의 Prepare → Commit 조정
+- 동기 방식, 강한 일관성
+
+```java
+// 2PC 개념 (Java Transaction API)
+@Transactional
+public void distributeOrder(Order order) {
+    // Phase 1: Prepare
+    boolean db1Ready = orderDb.prepare(order);
+    boolean db2Ready = inventoryDb.prepare(order);
+    boolean db3Ready = paymentDb.prepare(order);
+
+    // Phase 2: Commit or Rollback
+    if (db1Ready && db2Ready && db3Ready) {
+        orderDb.commit();
+        inventoryDb.commit();
+        paymentDb.commit();
+    } else {
+        orderDb.rollback();
+        inventoryDb.rollback();
+        paymentDb.rollback();
+    }
+}
+```
+
+**동작 흐름:**
+```
+Coordinator               DB1         DB2         DB3
+    |                       |           |           |
+    |------ Prepare ------->|           |           |
+    |                       |           |           |
+    |------ Prepare ---------------------->         |
+    |                       |           |           |
+    |------ Prepare ----------------------------------->
+    |                       |           |           |
+    |<----- Vote Yes -------|           |           |
+    |<----- Vote Yes ----------------------          |
+    |<----- Vote Yes -----------------------------------|
+    |                       |           |           |
+    |------ Commit -------->|           |           |
+    |------ Commit ---------------------->           |
+    |------ Commit ----------------------------------->
+```
+
+**트레이드오프:**
+- **장점**: 강한 일관성, ACID 보장
+- **단점**:
+  - Coordinator 단일 장애점
+  - 블로킹 프로토콜 (참여자 대기)
+  - 네트워크 지연 시 성능 저하
+  - 확장성 제한
+
+### 2단계: Saga Pattern
+
+**특징:**
+- 각 단계마다 로컬 트랜잭션 실행
+- 실패 시 보상 트랜잭션(Compensation)으로 롤백
+- 비동기 방식, 최종 일관성
+
+```java
+// Orchestration 방식
+@Service
+public class OrderSagaOrchestrator {
+    public void createOrder(Order order) {
+        try {
+            // Step 1: 주문 생성
+            orderService.createOrder(order);
+
+            // Step 2: 재고 차감
+            inventoryService.decreaseStock(order);
+
+            // Step 3: 결제 처리
+            paymentService.processPayment(order);
+
+        } catch (InventoryException e) {
+            // 보상: 주문 취소
+            orderService.cancelOrder(order);
+
+        } catch (PaymentException e) {
+            // 보상: 재고 복구 → 주문 취소
+            inventoryService.increaseStock(order);
+            orderService.cancelOrder(order);
+        }
+    }
+}
+```
+
+```java
+// Choreography 방식 (이벤트 기반)
+@Service
+public class OrderService {
+    @Transactional
+    public void createOrder(Order order) {
+        orderRepository.save(order);
+        eventPublisher.publish(new OrderCreatedEvent(order));
+    }
+
+    @EventListener
+    public void onPaymentFailed(PaymentFailedEvent event) {
+        // 보상 트랜잭션
+        Order order = orderRepository.findById(event.getOrderId());
+        order.cancel();
+        orderRepository.save(order);
+        eventPublisher.publish(new OrderCancelledEvent(order));
+    }
+}
+```
+
+**Saga vs 2PC 비교:**
+
+| 구분 | Saga | 2PC |
+|------|------|-----|
+| **일관성** | 최종 일관성 | 강한 일관성 |
+| **성능** | 높음 (비동기) | 낮음 (동기) |
+| **복잡도** | 보상 로직 필요 | 상대적으로 단순 |
+| **확장성** | 높음 | 낮음 |
+| **실패 처리** | 보상 트랜잭션 | 자동 롤백 |
+
+**트레이드오프:**
+- **장점**: 높은 확장성, 서비스 독립성, 비동기 처리
+- **단점**:
+  - 보상 로직 구현 복잡
+  - 일시적 불일치 상태 허용
+  - 모니터링 어려움
+  - 보상 실패 시 수동 개입 필요
+
+### 3단계: Event Sourcing
+
+**특징:**
+- 상태 변경을 이벤트로 저장
+- 이벤트 재생으로 현재 상태 복원
+- 완벽한 감사 로그
+
+```java
+// 상태 저장 방식 (기존)
+@Entity
+public class Account {
+    private Long id;
+    private BigDecimal balance;  // 현재 잔액만 저장
+}
+
+// Event Sourcing 방식
+@Entity
+public class AccountEvent {
+    private Long id;
+    private Long accountId;
+    private String eventType;  // CREATED, DEPOSITED, WITHDRAWN
+    private BigDecimal amount;
+    private LocalDateTime occurredAt;
+}
+
+@Service
+public class AccountService {
+    // 이벤트 추가만 (UPDATE 없음)
+    public void deposit(Long accountId, BigDecimal amount) {
+        AccountEvent event = new AccountEvent(
+            accountId,
+            "DEPOSITED",
+            amount,
+            LocalDateTime.now()
+        );
+        eventRepository.save(event);
+    }
+
+    // 이벤트 재생으로 현재 상태 계산
+    public BigDecimal getBalance(Long accountId) {
+        List<AccountEvent> events = eventRepository.findByAccountId(accountId);
+        return events.stream()
+            .map(this::applyEvent)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal applyEvent(AccountEvent event) {
+        return switch (event.getEventType()) {
+            case "DEPOSITED" -> event.getAmount();
+            case "WITHDRAWN" -> event.getAmount().negate();
+            default -> BigDecimal.ZERO;
+        };
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**:
+  - 완벽한 감사 로그
+  - 시간 여행 가능 (특정 시점 상태 복원)
+  - 이벤트 재생으로 버그 재현
+  - 삭제 없음 (이벤트만 추가)
+- **단점**:
+  - 조회 성능 저하 (이벤트 재생 비용)
+  - 저장 공간 증가
+  - 스키마 변경 어려움
+  - 스냅샷 관리 필요
+
+### 4단계: CQRS (Command Query Responsibility Segregation)
+
+**특징:**
+- 명령(쓰기) 모델과 조회(읽기) 모델 분리
+- 각 모델을 독립적으로 최적화
+- Event Sourcing과 자주 함께 사용
+
+```java
+// Command Model (쓰기)
+@Service
+public class OrderCommandService {
+    @Transactional
+    public void createOrder(CreateOrderCommand cmd) {
+        Order order = new Order(cmd);
+        orderRepository.save(order);
+
+        // 이벤트 발행
+        eventPublisher.publish(new OrderCreatedEvent(order));
+    }
+}
+
+// Query Model (읽기)
+@Service
+public class OrderQueryService {
+    private final OrderReadRepository readRepo;  // 비정규화된 읽기 전용 DB
+
+    public OrderSummary getOrderSummary(Long orderId) {
+        // 조회 최적화된 모델
+        return readRepo.findSummaryById(orderId);
+    }
+
+    @EventListener
+    public void onOrderCreated(OrderCreatedEvent event) {
+        // 읽기 모델 업데이트 (비동기)
+        OrderSummary summary = createSummary(event);
+        readRepo.save(summary);
+    }
+}
+```
+
+**구조:**
+```
+사용자 요청
+    │
+    ├─ 명령 (쓰기) ─→ Command Model ─→ Write DB ─→ Event
+    │                                                 ↓
+    └─ 조회 (읽기) ─→ Query Model ←───────────── Event Handler
+                           ↓
+                      Read DB (비정규화, 캐시)
+```
+
+**트레이드오프:**
+- **장점**:
+  - 읽기/쓰기 독립 확장
+  - 복잡한 조회 쿼리 최적화
+  - 읽기 모델 다중화 (MySQL + Elasticsearch)
+- **단점**:
+  - 아키텍처 복잡도 증가
+  - 읽기 모델 동기화 지연
+  - 데이터 일관성 복잡
+  - 운영 비용 증가
+
+### 분산 트랜잭션 선택 가이드
+
+| 요구사항 | 권장 패턴 | 이유 |
+|----------|----------|------|
+| **강한 일관성 필수** | 2PC | ACID 보장 |
+| **높은 처리량** | Saga | 비동기, 서비스 독립성 |
+| **감사 로그 중요** | Event Sourcing | 모든 변경 이력 보존 |
+| **복잡한 조회** | CQRS | 읽기 모델 최적화 |
+| **마이크로서비스** | Saga + CQRS | 확장성, 독립성 |
+
+### 진화 경로
+
+```
+1단계: 단일 DB + ACID
+   ↓ (서비스 분리)
+2단계: 2PC (분산 트랜잭션)
+   ↓ (성능 이슈)
+3단계: Saga Pattern
+   ↓ (복잡한 조회 필요)
+4단계: CQRS 추가
+   ↓ (감사 로그 필요)
+5단계: Event Sourcing
+```
+
 ## 정리
 
+**단일 DB 트랜잭션:**
 - 트랜잭션은 여러 작업을 하나로 묶어 원자성을 보장합니다
 - ACID는 원자성, 일관성, 격리성, 지속성을 의미합니다
 - InnoDB는 Undo Log(롤백), Redo Log(복구), MVCC(격리)로 구현합니다
@@ -468,3 +913,9 @@ public void processOrder(Order order) {
 - 재고 같은 동시성이 중요한 데이터는 비관적 락이나 낙관적 락을 사용합니다
 - 트랜잭션은 가능한 짧게 유지하고, 외부 API 호출은 트랜잭션 밖에서 합니다
 - 데드락 발생 시 락 순서를 일관되게 유지하세요
+
+**분산 트랜잭션:**
+- 강한 일관성이 필요하면 2PC, 높은 확장성이 필요하면 Saga
+- Event Sourcing은 감사 로그와 시간 여행이 필요할 때
+- CQRS는 복잡한 조회와 높은 읽기 처리량이 필요할 때
+- 분산 환경에서는 최종 일관성을 허용하는 것이 일반적
