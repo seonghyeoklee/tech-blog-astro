@@ -880,6 +880,236 @@ public void updateOrder(Long orderId) {
 
 영속성 컨텍스트를 이해하고 적절히 관리하면 혼용도 가능합니다.
 
+## 아키텍처로 풀어내는 복잡한 쿼리
+
+기술 선택만이 답은 아닙니다. 데이터 모델링과 아키텍처 설계로 문제를 근본적으로 해결할 수 있습니다.
+
+### 1. 역정규화 (Denormalization)
+
+정규화된 테이블을 의도적으로 역정규화하여 조인을 제거합니다.
+
+```java
+// Before: 정규화된 구조 (복잡한 조인 필요)
+@Entity
+public class Order {
+    @ManyToOne
+    private User user;  // user 정보를 얻으려면 조인 필요
+}
+
+// After: 역정규화 (조인 없이 조회)
+@Entity
+public class Order {
+    @ManyToOne
+    private User user;
+
+    // 자주 조회되는 user 정보 복사
+    private String userName;
+    private String userEmail;
+
+    public void syncUserInfo() {
+        this.userName = user.getName();
+        this.userEmail = user.getEmail();
+    }
+}
+```
+
+**사용 사례**:
+- 통계/리포팅 테이블 (주문 집계, 월별 요약)
+- 읽기 빈도가 높은 데이터
+- 조인 비용이 큰 경우
+
+**트레이드오프**:
+- **장점**: 읽기 성능 대폭 향상, 복잡한 쿼리 단순화
+- **단점**: 데이터 중복, 일관성 유지 부담, 저장 공간 증가
+
+```java
+// 주문 통계 테이블 (역정규화)
+@Entity
+public class MonthlyOrderStatistics {
+    @Id
+    private String monthKey;  // "2024-12"
+    private Long userId;
+    private String userName;  // 역정규화
+    private int orderCount;
+    private BigDecimal totalAmount;
+
+    // 복잡한 집계 쿼리 → 단순 조회
+    // SELECT * FROM monthly_order_statistics WHERE month_key = '2024-12'
+}
+```
+
+### 2. CQRS (Command Query Responsibility Segregation)
+
+쓰기와 읽기를 완전히 분리하는 아키텍처 패턴입니다.
+
+```java
+// Command (쓰기) - 정규화된 JPA
+@Service
+public class OrderCommandService {
+    private final OrderRepository orderRepository;
+
+    @Transactional
+    public void createOrder(CreateOrderCommand command) {
+        Order order = new Order(command);
+        orderRepository.save(order);
+
+        // 이벤트 발행
+        eventPublisher.publish(new OrderCreatedEvent(order));
+    }
+}
+
+// Query (읽기) - 역정규화된 읽기 전용 모델
+@Service
+public class OrderQueryService {
+    private final OrderReadRepository readRepository;  // 읽기 전용 DB
+
+    public List<OrderSummary> getMonthlyReport(int year, int month) {
+        // 역정규화된 테이블에서 단순 조회
+        return readRepository.findByYearAndMonth(year, month);
+    }
+}
+
+// 이벤트 핸들러 - 읽기 모델 동기화
+@EventListener
+public void onOrderCreated(OrderCreatedEvent event) {
+    // 읽기 모델 업데이트 (비동기)
+    orderReadRepository.updateStatistics(event.getOrder());
+}
+```
+
+**구현 전략**:
+```
+쓰기 (Command):
+- 정규화된 RDB + JPA
+- 트랜잭션 일관성 보장
+- 도메인 로직 실행
+
+읽기 (Query):
+- 역정규화된 RDB (MyBatis/JDBC)
+- Document DB (MongoDB)
+- ElasticSearch (검색 최적화)
+- Redis (캐시)
+```
+
+**트레이드오프**:
+- **장점**: 읽기/쓰기 최적화, 확장성, 복잡한 쿼리 단순화
+- **단점**: 복잡도 증가, Eventual Consistency, 인프라 비용
+
+### 3. Document DB (MongoDB, DynamoDB)
+
+복잡한 조인이 필요 없는 Document 기반 저장소를 사용합니다.
+
+```java
+// MongoDB Document
+@Document(collection = "orders")
+public class OrderDocument {
+    @Id
+    private String id;
+
+    // User 정보를 내장 (조인 불필요)
+    private UserInfo user;
+
+    // OrderItem 정보를 내장 (조인 불필요)
+    private List<OrderItemInfo> items;
+
+    @Data
+    public static class UserInfo {
+        private String id;
+        private String name;
+        private String email;
+    }
+
+    @Data
+    public static class OrderItemInfo {
+        private String productId;
+        private String productName;
+        private int quantity;
+        private BigDecimal price;
+    }
+}
+
+// 복잡한 조인 없이 한 번에 조회
+OrderDocument order = mongoTemplate.findById(orderId, OrderDocument.class);
+// order.user.name, order.items 모두 포함
+```
+
+**사용 사례**:
+- 읽기 빈도가 높고 관계가 복잡한 경우
+- 스키마가 유연해야 하는 경우
+- 수평 확장이 필요한 대용량 데이터
+
+**하이브리드 전략**:
+```java
+// 쓰기: RDB (JPA) - 트랜잭션, 일관성
+@Transactional
+public Order createOrder(OrderRequest request) {
+    Order order = new Order(request);
+    orderRepository.save(order);
+
+    // MongoDB에 읽기 최적화 문서 생성 (비동기)
+    asyncService.createOrderDocument(order);
+
+    return order;
+}
+
+// 읽기: MongoDB - 빠른 조회, 조인 불필요
+public OrderDocument getOrderDetail(String orderId) {
+    return mongoTemplate.findById(orderId, OrderDocument.class);
+}
+```
+
+**트레이드오프**:
+- **장점**: 조인 불필요, 빠른 읽기, 수평 확장 용이
+- **단점**: 트랜잭션 제약, 데이터 중복, 일관성 관리
+
+### 4. Read Replica + Materialized View
+
+읽기 전용 복제본에 미리 계산된 뷰를 만듭니다.
+
+```sql
+-- Materialized View (PostgreSQL)
+CREATE MATERIALIZED VIEW monthly_order_summary AS
+SELECT
+    DATE_TRUNC('month', o.created_at) as month,
+    u.id as user_id,
+    u.name as user_name,
+    COUNT(o.id) as order_count,
+    SUM(o.amount) as total_amount
+FROM orders o
+JOIN users u ON o.user_id = u.id
+GROUP BY DATE_TRUNC('month', o.created_at), u.id, u.name;
+
+-- 주기적 갱신
+REFRESH MATERIALIZED VIEW CONCURRENTLY monthly_order_summary;
+```
+
+```java
+// 복잡한 집계 쿼리 → 단순 조회
+@Query("SELECT * FROM monthly_order_summary WHERE month = :month")
+List<MonthlySummary> getMonthlyReport(@Param("month") LocalDate month);
+```
+
+**트레이드오프**:
+- **장점**: 복잡한 쿼리 성능 대폭 향상, RDB 기능 유지
+- **단점**: 실시간성 낮음, 저장 공간 추가, 갱신 비용
+
+### 아키텍처 선택 가이드
+
+| 복잡도 | 데이터 일관성 | 추천 전략 |
+|--------|--------------|----------|
+| 낮음 | 강한 일관성 | JPA + QueryDSL |
+| 중간 | 강한 일관성 | JPA + 역정규화 테이블 |
+| 높음 | Eventual OK | CQRS (RDB + Document DB) |
+| 매우 높음 | Eventual OK | CQRS (RDB + ElasticSearch) |
+
+**진화 경로**:
+```
+1단계: JPA + QueryDSL (80% 케이스 해결)
+2단계: 역정규화 테이블 추가 (복잡한 리포팅)
+3단계: Read Replica + Materialized View (성능 최적화)
+4단계: CQRS + Document DB (대규모 확장)
+```
+
 ## 실무 선택 기준
 
 선택은 프로젝트 특성, 팀 역량, 요구사항의 트레이드오프입니다.
@@ -937,18 +1167,35 @@ public void updateOrder(Long orderId) {
 
 ## 정리
 
-데이터 접근 기술의 선택은 트레이드오프입니다.
+데이터 접근 방식의 선택은 **기술**과 **아키텍처** 두 가지 차원의 트레이드오프입니다.
 
-**핵심 포인트**:
-- JPA는 생산성과 객체 지향 설계에 강점이 있지만, 복잡한 쿼리는 QueryDSL이나 Native Query로 해결할 수 있습니다
-- MyBatis는 SQL 제어력이 뛰어나지만, 반복 코드가 많아 생산성 측면에서 트레이드오프가 있습니다
-- JDBC는 최소 오버헤드와 완벽한 제어가 가능하지만, 모든 매핑을 수동으로 작성해야 합니다
-- 실무에서는 JPA+QueryDSL, JPA+MyBatis, JPA+JDBC 등 혼용 전략을 많이 사용합니다
+**기술 레벨의 선택**:
+- **JPA**: 생산성과 객체 지향 설계에 강점. QueryDSL/Native Query로 복잡한 쿼리 해결 가능
+- **MyBatis**: SQL 완벽 제어, 리포팅/통계에 유리. 반복 코드가 많아 생산성 트레이드오프
+- **JDBC**: 최소 오버헤드와 완벽한 제어. 모든 매핑을 수동 작성해야 함
+- **혼용 전략**: JPA+QueryDSL, JPA+MyBatis, JPA+JDBC 조합으로 각 기술의 강점 활용
+
+**아키텍처 레벨의 해결책**:
+- **역정규화**: 조인 제거, 읽기 성능 향상 (데이터 중복 트레이드오프)
+- **CQRS**: 쓰기/읽기 분리, 각각 최적화 (복잡도 증가 트레이드오프)
+- **Document DB**: 조인 없는 구조, 빠른 읽기 (트랜잭션 제약 트레이드오프)
+- **Materialized View**: 미리 계산된 집계, 성능 향상 (실시간성 트레이드오프)
 
 **선택의 기준**:
-- 프로젝트 특성 (도메인 복잡도, 쿼리 복잡도, 성능 요구사항)
-- 팀 역량 (객체 지향 vs SQL 최적화 경험)
-- 레거시 시스템 연동 여부
-- 유지보수성과 생산성의 우선순위
+1. **프로젝트 특성**: 도메인 복잡도, 쿼리 복잡도, 성능 요구사항, 확장성 필요
+2. **팀 역량**: 객체 지향 설계 vs SQL 최적화 경험, 아키텍처 운영 능력
+3. **시스템 규모**: 트래픽, 데이터량, 일관성 요구사항
+4. **비즈니스 우선순위**: 빠른 개발 vs 성능 최적화 vs 운영 안정성
 
-어떤 기술도 모든 상황에서 완벽한 해답은 아닙니다. 각 기술의 강점과 약점을 이해하고, 프로젝트 상황에 맞는 조합을 선택하는 것이 중요합니다. 필요하다면 한 프로젝트 내에서도 여러 기술을 함께 사용할 수 있습니다.
+**진화 전략**:
+```
+시작: JPA + QueryDSL (생산성)
+  ↓
+성장: + 역정규화 테이블 (복잡한 리포팅)
+  ↓
+확장: + CQRS (읽기/쓰기 분리)
+  ↓
+대규모: + Document DB / ElasticSearch (수평 확장)
+```
+
+어떤 기술이나 아키텍처도 모든 상황에서 완벽한 해답은 아닙니다. 각 선택지의 트레이드오프를 이해하고, 현재 상황에 맞는 조합을 선택한 뒤, 필요에 따라 점진적으로 진화시키는 것이 중요합니다.
