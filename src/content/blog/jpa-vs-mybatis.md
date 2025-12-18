@@ -153,10 +153,10 @@ Dialect만 바꾸면 다른 DB로 전환 가능합니다.
 
 영속성 컨텍스트, 즉시/지연 로딩, N+1 문제 등 개념이 많습니다. 제대로 이해하지 못하면 성능 문제가 발생합니다.
 
-**2. 복잡한 쿼리**
+**2. 복잡한 쿼리 작성의 트레이드오프**
 
 ```java
-// 이런 복잡한 쿼리는 JPQL로 작성하기 어려움
+// 순수 JPQL로는 이런 복잡한 쿼리 작성이 번거로울 수 있음
 SELECT u.name, COUNT(o.id), SUM(o.amount)
 FROM users u
 LEFT JOIN orders o ON u.id = o.user_id
@@ -166,7 +166,7 @@ HAVING SUM(o.amount) > 100000
 ORDER BY SUM(o.amount) DESC
 ```
 
-조인이 많고 집계 함수를 사용하는 쿼리는 작성이 복잡합니다.
+조인이 많고 집계 함수를 사용하는 쿼리는 JPQL로 작성 시 가독성이 떨어질 수 있습니다. 하지만 JPA에는 이를 해결할 수 있는 여러 방법이 있습니다.
 
 **3. N+1 문제**
 
@@ -181,6 +181,103 @@ for (Order order : orders) {
 ```
 
 연관 엔티티를 조회할 때 추가 쿼리가 발생합니다. Fetch Join으로 해결할 수 있지만 주의가 필요합니다.
+
+## JPA로 복잡한 쿼리 해결하기
+
+순수 JPQL이 복잡하다고 해서 JPA가 복잡한 쿼리를 처리할 수 없는 것은 아닙니다. 여러 해결책이 있습니다.
+
+### 1. QueryDSL
+
+타입 안전한 쿼리 빌더입니다. 컴파일 시점에 오류를 잡을 수 있습니다.
+
+```java
+// QueryDSL로 복잡한 쿼리 작성
+QUser user = QUser.user;
+QOrder order = QOrder.order;
+
+List<UserOrderSummary> result = queryFactory
+    .select(Projections.constructor(
+        UserOrderSummary.class,
+        user.name,
+        order.count(),
+        order.amount.sum()
+    ))
+    .from(user)
+    .leftJoin(order).on(order.user.eq(user))
+    .where(order.createdAt.after(LocalDateTime.now().minusDays(30)))
+    .groupBy(user.id)
+    .having(order.amount.sum().gt(100000))
+    .orderBy(order.amount.sum().desc())
+    .fetch();
+```
+
+**장점**:
+- 컴파일 시점 타입 체크
+- IDE 자동완성 지원
+- 동적 쿼리 작성이 직관적
+- 리팩토링 안전성
+
+**트레이드오프**:
+- 초기 설정 필요 (Q클래스 생성)
+- 학습 곡선 존재
+
+### 2. Native Query
+
+SQL을 직접 작성할 수 있습니다. DB 특화 기능도 사용 가능합니다.
+
+```java
+@Query(value = """
+    SELECT u.name, COUNT(o.id) as order_count, SUM(o.amount) as total_amount
+    FROM users u
+    LEFT JOIN orders o ON u.id = o.user_id
+    WHERE o.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY u.id
+    HAVING SUM(o.amount) > 100000
+    ORDER BY SUM(o.amount) DESC
+    """, nativeQuery = true)
+List<OrderSummaryDto> getMonthlyTopUsers();
+```
+
+**장점**:
+- SQL을 그대로 사용 가능
+- DB 특화 기능 활용 (힌트, 윈도우 함수 등)
+- 성능 최적화 용이
+
+**트레이드오프**:
+- DB 종속성 발생
+- 타입 안정성 낮음
+- 영속성 컨텍스트 관리 주의 필요
+
+### 3. Specification API
+
+동적 쿼리를 객체 지향적으로 작성할 수 있습니다.
+
+```java
+public class OrderSpecifications {
+    public static Specification<Order> createdAfter(LocalDateTime date) {
+        return (root, query, cb) -> cb.greaterThan(root.get("createdAt"), date);
+    }
+
+    public static Specification<Order> amountGreaterThan(int amount) {
+        return (root, query, cb) -> cb.greaterThan(root.get("amount"), amount);
+    }
+}
+
+// 사용
+List<Order> orders = orderRepository.findAll(
+    Specification.where(OrderSpecifications.createdAfter(startDate))
+        .and(OrderSpecifications.amountGreaterThan(100000))
+);
+```
+
+**장점**:
+- 조건을 재사용 가능
+- 동적 쿼리 조합이 명확
+- 타입 안전성 유지
+
+**트레이드오프**:
+- 복잡한 쿼리는 코드가 길어짐
+- 학습 필요
 
 ## MyBatis란
 
@@ -315,6 +412,117 @@ String userName = order.getUserName();
 ```
 
 연관 객체를 자동으로 가져올 수 없습니다.
+
+## JDBC/JdbcTemplate란
+
+가장 낮은 수준의 데이터베이스 접근 방식입니다. Spring의 JdbcTemplate은 순수 JDBC의 번거로움을 줄여줍니다.
+
+### 직접적인 SQL 실행
+
+```java
+@Repository
+public class UserJdbcRepository {
+    private final JdbcTemplate jdbcTemplate;
+
+    public User findById(Long id) {
+        String sql = "SELECT id, name, email FROM users WHERE id = ?";
+        return jdbcTemplate.queryForObject(sql,
+            (rs, rowNum) -> new User(
+                rs.getLong("id"),
+                rs.getString("name"),
+                rs.getString("email")
+            ),
+            id
+        );
+    }
+
+    public void save(User user) {
+        String sql = "INSERT INTO users (name, email) VALUES (?, ?)";
+        jdbcTemplate.update(sql, user.getName(), user.getEmail());
+    }
+}
+```
+
+### JDBC/JdbcTemplate의 장점
+
+**1. 완벽한 제어**
+
+```java
+// 배치 처리
+jdbcTemplate.batchUpdate(
+    "INSERT INTO logs (user_id, action) VALUES (?, ?)",
+    logList,
+    100,  // 배치 크기
+    (ps, log) -> {
+        ps.setLong(1, log.getUserId());
+        ps.setString(2, log.getAction());
+    }
+);
+```
+
+리소스 관리, 커넥션 제어를 직접 할 수 있습니다.
+
+**2. 최소한의 오버헤드**
+
+```java
+// 순수 SQL 실행, 추가 레이어 없음
+List<Map<String, Object>> results =
+    jdbcTemplate.queryForList("SELECT * FROM products WHERE price < ?", 10000);
+```
+
+프레임워크 오버헤드가 거의 없어 성능이 중요한 경우 유리합니다.
+
+**3. 간단한 학습 곡선**
+
+SQL과 Java만 알면 됩니다. 추가 개념이 거의 없습니다.
+
+### JDBC/JdbcTemplate의 단점
+
+**1. 반복적인 매핑 코드**
+
+```java
+// 매번 RowMapper 작성
+jdbcTemplate.query(sql, (rs, rowNum) -> {
+    User user = new User();
+    user.setId(rs.getLong("id"));
+    user.setName(rs.getString("name"));
+    user.setEmail(rs.getString("email"));
+    // 컬럼이 많으면 매핑 코드도 길어짐
+    return user;
+});
+```
+
+모든 쿼리에 대해 ResultSet 매핑을 직접 작성해야 합니다.
+
+**2. SQL 문자열 관리**
+
+```java
+// SQL이 문자열로 흩어져 있음
+String sql1 = "SELECT * FROM users WHERE id = ?";
+String sql2 = "INSERT INTO users (name, email) VALUES (?, ?)";
+String sql3 = "UPDATE users SET name = ?, email = ? WHERE id = ?";
+```
+
+타입 안정성이 없고 오타 발견이 어렵습니다.
+
+**3. 동적 쿼리 작성의 어려움**
+
+```java
+// 조건에 따라 SQL 문자열을 조합해야 함
+StringBuilder sql = new StringBuilder("SELECT * FROM users WHERE 1=1");
+List<Object> params = new ArrayList<>();
+
+if (name != null) {
+    sql.append(" AND name = ?");
+    params.add(name);
+}
+if (email != null) {
+    sql.append(" AND email = ?");
+    params.add(email);
+}
+```
+
+MyBatis의 동적 SQL보다 번거롭습니다.
 
 ## 언제 JPA를 선택하는가
 
@@ -486,45 +694,156 @@ JPA는 엔티티 설계가 어색해질 수 있습니다.
 
 ## 트레이드오프 정리
 
-| 기준 | JPA | MyBatis |
-|-----|-----|---------|
-| **생산성** | 높음 (기본 CRUD 자동) | 낮음 (모든 SQL 작성) |
-| **학습 난이도** | 높음 (개념 많음) | 낮음 (SQL만 알면 됨) |
-| **복잡한 쿼리** | 어려움 | 쉬움 |
-| **SQL 제어** | 제한적 | 완벽 |
-| **유지보수** | 엔티티만 수정 | SQL 일일이 수정 |
-| **타입 안정성** | 높음 | 낮음 (XML) |
-| **성능 튜닝** | 어려움 | 쉬움 |
-| **객체 지향** | 강함 | 약함 |
+| 기준 | JPA | MyBatis | JDBC/JdbcTemplate |
+|-----|-----|---------|-------------------|
+| **생산성** | 높음 (기본 CRUD 자동) | 중간 (SQL 작성 필요) | 낮음 (모든 코드 수동) |
+| **학습 난이도** | 높음 (개념 많음) | 낮음 (SQL만 알면 됨) | 매우 낮음 (SQL + Java) |
+| **복잡한 쿼리** | QueryDSL/Native로 가능 | 쉬움 (동적 SQL 지원) | 가능하지만 번거로움 |
+| **SQL 제어** | Native Query로 완벽 제어 가능 | 완벽 | 완벽 |
+| **유지보수** | 엔티티 수정 시 자동 반영 | SQL 일일이 수정 | SQL + 매핑 모두 수정 |
+| **타입 안정성** | 높음 (QueryDSL 사용 시) | 낮음 (XML) | 낮음 (문자열 SQL) |
+| **성능 튜닝** | Native/힌트로 가능 | 쉬움 | 매우 쉬움 |
+| **객체 지향** | 강함 | 약함 | 없음 |
+| **프레임워크 오버헤드** | 있음 (영속성 컨텍스트) | 적음 | 거의 없음 |
 
 ## 혼용 전략
 
-실무에서는 두 기술을 함께 사용하는 경우가 많습니다.
+실무에서는 세 가지 기술을 상황에 맞게 조합하여 사용하는 경우가 많습니다.
 
-### 용도 분리
+### 1. JPA + QueryDSL 조합
 
 ```java
 @Service
 public class OrderService {
     private final OrderRepository orderRepository;  // JPA
-    private final OrderQueryMapper orderQueryMapper;  // MyBatis
+    private final JPAQueryFactory queryFactory;  // QueryDSL
 
-    // 단순 CRUD → JPA
+    // 단순 CRUD → JPA Repository
     public Order createOrder(OrderRequest request) {
         Order order = new Order(request);
         return orderRepository.save(order);
     }
 
-    // 복잡한 조회 → MyBatis
+    // 복잡한 조회 → QueryDSL
     public List<OrderSummary> getMonthlyReport(int year, int month) {
-        return orderQueryMapper.getMonthlyReport(year, month);
+        QOrder order = QOrder.order;
+        QUser user = QUser.user;
+
+        return queryFactory
+            .select(Projections.constructor(
+                OrderSummary.class,
+                user.name,
+                order.count(),
+                order.amount.sum()
+            ))
+            .from(order)
+            .join(order.user, user)
+            .where(order.createdAt.year().eq(year)
+                .and(order.createdAt.month().eq(month)))
+            .groupBy(user.id)
+            .fetch();
+    }
+}
+```
+
+**선택 이유**: JPA 생태계 내에서 복잡한 쿼리 해결, 타입 안정성 유지
+
+### 2. JPA + MyBatis 조합
+
+```java
+@Service
+public class OrderService {
+    private final OrderRepository orderRepository;  // JPA
+    private final OrderStatisticsMapper statisticsMapper;  // MyBatis
+
+    // 도메인 로직과 CRUD → JPA
+    public Order createOrder(OrderRequest request) {
+        Order order = new Order(request);
+        order.calculateTotalAmount();  // 도메인 로직
+        return orderRepository.save(order);
+    }
+
+    // 리포팅/통계 → MyBatis
+    public List<MonthlyStatistics> getYearlyStatistics(int year) {
+        // CTE, 윈도우 함수 등 DB 특화 기능 활용
+        return statisticsMapper.getYearlyStatistics(year);
+    }
+}
+```
+
+**선택 이유**:
+- 도메인 중심 개발은 JPA
+- 복잡한 리포팅/분석은 MyBatis로 SQL 직접 제어
+
+### 3. JPA + JDBC 조합
+
+```java
+@Service
+public class OrderService {
+    private final OrderRepository orderRepository;  // JPA
+    private final JdbcTemplate jdbcTemplate;  // JDBC
+
+    // 도메인 로직 → JPA
+    public void processOrder(Long orderId) {
+        Order order = orderRepository.findById(orderId).orElseThrow();
+        order.process();  // 도메인 로직 실행
+    }
+
+    // 대량 배치 처리 → JDBC
+    public void bulkUpdateOrderStatus(List<Long> orderIds, OrderStatus status) {
+        String sql = "UPDATE orders SET status = ? WHERE id = ?";
+
+        jdbcTemplate.batchUpdate(sql, orderIds, 1000, (ps, orderId) -> {
+            ps.setString(1, status.name());
+            ps.setLong(2, orderId);
+        });
+    }
+}
+```
+
+**선택 이유**:
+- 비즈니스 로직은 JPA로 객체 지향적으로
+- 성능이 중요한 대량 처리는 JDBC로 최소 오버헤드
+
+### 4. 레이어별 분리 전략
+
+```java
+// 도메인 계층: JPA
+@Entity
+public class Order {
+    @Id @GeneratedValue
+    private Long id;
+
+    @OneToMany(cascade = CascadeType.ALL)
+    private List<OrderItem> items;
+
+    public void addItem(Product product, int quantity) {
+        items.add(new OrderItem(this, product, quantity));
+    }
+}
+
+// 조회 계층: MyBatis 또는 QueryDSL
+@Mapper
+public interface OrderQueryMapper {
+    List<OrderSummary> findOrderSummaries(OrderSearchCondition condition);
+}
+
+// 배치 계층: JDBC
+@Component
+public class OrderBatchProcessor {
+    private final JdbcTemplate jdbcTemplate;
+
+    public void bulkInsertLogs(List<OrderLog> logs) {
+        // 대량 데이터 빠른 처리
     }
 }
 ```
 
 **원칙**:
-- 쓰기(CUD)는 JPA
-- 복잡한 읽기는 MyBatis
+- **쓰기(CUD) 중심**: JPA (영속성 컨텍스트, 변경 감지)
+- **복잡한 읽기**: QueryDSL (타입 안전) 또는 MyBatis (SQL 제어)
+- **대량 처리**: JDBC (최소 오버헤드)
+- **리포팅/분석**: MyBatis (복잡한 SQL, DB 특화 기능)
 
 ### 주의사항
 
@@ -549,48 +868,87 @@ public void updateOrder(Long orderId) {
     Order order = orderRepository.findById(orderId).get();
     order.setStatus(OrderStatus.COMPLETED);
     order.setAmount(newAmount);  // JPA로 통일
+
+    // 또는 명시적으로 영속성 컨텍스트 플러시
+    entityManager.flush();  // 변경사항을 DB에 즉시 반영
+    entityManager.clear();  // 영속성 컨텍스트 초기화
+
+    // 이후 MyBatis 사용
+    orderMapper.updateOrderAmount(orderId, newAmount);
 }
 ```
 
+영속성 컨텍스트를 이해하고 적절히 관리하면 혼용도 가능합니다.
+
 ## 실무 선택 기준
 
-### 프로젝트 초기
+선택은 프로젝트 특성, 팀 역량, 요구사항의 트레이드오프입니다.
 
-**신규 프로젝트 + 도메인 중심 설계 → JPA**
+### 프로젝트 특성별 고려사항
+
+**신규 프로젝트 + 도메인 중심 설계**
+- **JPA + QueryDSL**: 객체 지향적 설계와 타입 안전성
 - 도메인 로직이 복잡한 서비스
 - CRUD가 주된 기능
 - 스키마 변경이 잦은 초기 단계
 
-**레거시 DB + 복잡한 쿼리 → MyBatis**
+**레거시 시스템 통합**
+- **MyBatis 또는 JDBC**: 기존 스키마에 유연하게 대응
 - 이미 설계된 복잡한 스키마
-- 리포팅, 통계 위주 시스템
-- SQL 튜닝이 중요한 대용량 서비스
+- 변경이 어려운 레거시 DB 구조
 
-### 팀 역량
+**리포팅/분석 시스템**
+- **MyBatis**: 복잡한 집계 쿼리, CTE, 윈도우 함수 활용
+- SQL 튜닝이 중요한 대용량 조회
 
-**JPA 경험이 있는 팀 → JPA**
-- 영속성 컨텍스트, N+1 문제 해결 경험
-- 객체 지향 설계에 익숙
+**고성능 배치 처리**
+- **JDBC**: 최소 오버헤드로 대량 데이터 처리
+- 수백만 건 이상의 데이터 Insert/Update
 
-**SQL 중심 팀 → MyBatis**
-- DBA와 협업이 중요
-- SQL 튜닝 노하우가 많음
+### 팀 역량별 고려사항
 
-### 하이브리드 전략
+**객체 지향 설계 경험이 풍부한 팀**
+- JPA의 장점을 극대화할 수 있음
+- 영속성 컨텍스트, N+1 문제 이해도가 높음
+- DDD(Domain-Driven Design) 적용 시 JPA가 적합
+
+**SQL 최적화 경험이 풍부한 팀**
+- MyBatis로 쿼리를 직접 제어하여 성능 최적화
+- DBA와 긴밀한 협업
+- 데이터베이스 중심 설계
+
+**빠른 개발이 필요한 스타트업**
+- JPA로 초기 생산성 확보
+- 복잡한 쿼리는 나중에 최적화 (QueryDSL, Native Query)
+
+### 현실적인 하이브리드 전략
 
 ```
-- 도메인 코어: JPA (User, Order, Product)
-- 조회 전용: MyBatis (통계, 리포트, 대시보드)
-- 배치: MyBatis (대량 데이터 처리)
+계층별 분리:
+- 도메인 코어: JPA + QueryDSL (User, Order, Product)
+- 복잡한 조회: MyBatis (월간 통계, 대시보드)
+- 대량 배치: JDBC (정산, 로그 처리)
+
+성능 최적화 전략:
+- 80% CRUD: JPA로 빠른 개발
+- 15% 복잡한 조회: QueryDSL 또는 MyBatis
+- 5% 성능 크리티컬: Native Query 또는 JDBC
 ```
 
 ## 정리
 
-이 글에서 다룬 내용을 정리하면 다음과 같습니다.
+데이터 접근 기술의 선택은 트레이드오프입니다.
 
-- JPA는 생산성이 높지만 학습 곡선이 있고, MyBatis는 간단하지만 반복 코드가 많습니다
-- 도메인 중심 설계와 CRUD 위주면 JPA, 복잡한 조회와 성능 튜닝이 중요하면 MyBatis입니다
-- 실무에서는 두 기술을 혼용하되, 용도를 명확히 분리해야 합니다
-- 프로젝트 특성과 팀 역량을 고려하여 선택해야 합니다
+**핵심 포인트**:
+- JPA는 생산성과 객체 지향 설계에 강점이 있지만, 복잡한 쿼리는 QueryDSL이나 Native Query로 해결할 수 있습니다
+- MyBatis는 SQL 제어력이 뛰어나지만, 반복 코드가 많아 생산성 측면에서 트레이드오프가 있습니다
+- JDBC는 최소 오버헤드와 완벽한 제어가 가능하지만, 모든 매핑을 수동으로 작성해야 합니다
+- 실무에서는 JPA+QueryDSL, JPA+MyBatis, JPA+JDBC 등 혼용 전략을 많이 사용합니다
 
-무조건 어느 하나가 좋다는 것은 없습니다. 트레이드오프를 이해하고 상황에 맞게 선택하는 것이 중요합니다.
+**선택의 기준**:
+- 프로젝트 특성 (도메인 복잡도, 쿼리 복잡도, 성능 요구사항)
+- 팀 역량 (객체 지향 vs SQL 최적화 경험)
+- 레거시 시스템 연동 여부
+- 유지보수성과 생산성의 우선순위
+
+어떤 기술도 모든 상황에서 완벽한 해답은 아닙니다. 각 기술의 강점과 약점을 이해하고, 프로젝트 상황에 맞는 조합을 선택하는 것이 중요합니다. 필요하다면 한 프로젝트 내에서도 여러 기술을 함께 사용할 수 있습니다.
