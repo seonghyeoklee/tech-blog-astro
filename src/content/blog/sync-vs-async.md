@@ -426,13 +426,355 @@ public class OrderEventListener {
 
 핵심 로직은 동기로, 부가 작업은 비동기로 처리합니다.
 
+## 아키텍처로 풀어내는 비동기 처리
+
+단순 @Async나 CompletableFuture만이 답은 아닙니다. 아키텍처 패턴으로 더 안정적이고 확장 가능한 비동기 처리를 구현할 수 있습니다.
+
+### 1. 메시지 큐 (Kafka, RabbitMQ)
+
+가장 안정적인 비동기 처리 방식입니다. 작업을 큐에 넣고 컨슈머가 처리합니다.
+
+```java
+// Producer: 이벤트 발행
+@Service
+public class OrderService {
+
+    private final KafkaTemplate<String, OrderEvent> kafkaTemplate;
+
+    @Transactional
+    public OrderResponse createOrder(OrderRequest request) {
+        // 1. 핵심 로직 (동기)
+        Order order = orderRepository.save(new Order(request));
+        paymentService.process(order);
+        stockService.decrease(order);
+
+        // 2. 이벤트 발행 (비동기)
+        OrderEvent event = OrderEvent.from(order);
+        kafkaTemplate.send("order-created", event);
+
+        return OrderResponse.from(order);
+    }
+}
+
+// Consumer: 이벤트 처리
+@Service
+public class EmailNotificationConsumer {
+
+    @KafkaListener(topics = "order-created", groupId = "email-service")
+    public void handleOrderCreated(OrderEvent event) {
+        try {
+            emailService.sendConfirmation(event.getOrderId());
+        } catch (Exception e) {
+            // 재시도 로직 자동 처리
+            log.error("이메일 발송 실패, 재시도됨", e);
+            throw e;  // 실패 시 자동 재시도
+        }
+    }
+}
+```
+
+**장점**:
+- **재시도 보장**: 실패 시 자동으로 재시도
+- **순서 보장**: 파티션 키로 순서 보장 가능
+- **장애 격리**: 컨슈머 장애가 프로듀서에 영향 없음
+- **확장성**: 컨슈머 수평 확장 가능
+- **모니터링**: 큐 깊이, 처리 속도 추적
+
+**트레이드오프**:
+- **인프라 복잡도**: Kafka/RabbitMQ 운영 필요
+- **지연 시간**: 큐 처리 시간 추가
+- **Eventual Consistency**: 즉시 반영되지 않음
+
+**사용 사례**:
+```java
+// 주문 후 여러 서비스에 알림 (확장 가능)
+kafkaTemplate.send("order-created", event);
+
+// 다양한 컨슈머가 구독
+- EmailConsumer: 이메일 발송
+- SmsConsumer: 알림톡 발송
+- AnalyticsConsumer: 통계 집계
+- ExternalApiConsumer: 외부 시스템 연동
+```
+
+### 2. Reactive Programming (WebFlux)
+
+완전한 논블로킹 스택으로 높은 동시성을 처리합니다.
+
+```java
+// Spring WebFlux
+@RestController
+public class OrderController {
+
+    @PostMapping("/orders")
+    public Mono<OrderResponse> createOrder(@RequestBody OrderRequest request) {
+        return orderService.save(request)
+            .flatMap(order -> paymentService.process(order))
+            .flatMap(order -> stockService.decrease(order))
+            .flatMap(order -> {
+                // 이메일 발송은 병렬로 (결과 기다리지 않음)
+                emailService.sendAsync(order).subscribe();
+                return Mono.just(OrderResponse.from(order));
+            })
+            .onErrorResume(e -> {
+                log.error("주문 처리 실패", e);
+                return Mono.just(OrderResponse.failed());
+            });
+    }
+}
+
+// Reactive Repository
+public interface OrderRepository extends ReactiveCrudRepository<Order, Long> {
+    Flux<Order> findByUserId(Long userId);
+}
+
+// 병렬 처리
+public Mono<OrderSummary> getOrderSummary(Long orderId) {
+    Mono<Order> orderMono = orderRepository.findById(orderId);
+    Mono<User> userMono = userRepository.findById(userId);
+    Mono<Payment> paymentMono = paymentRepository.findByOrderId(orderId);
+
+    // 3개 쿼리 병렬 실행, 모두 완료되면 조합
+    return Mono.zip(orderMono, userMono, paymentMono)
+        .map(tuple -> new OrderSummary(
+            tuple.getT1(),  // Order
+            tuple.getT2(),  // User
+            tuple.getT3()   // Payment
+        ));
+}
+```
+
+**장점**:
+- **높은 동시성**: 적은 스레드로 많은 요청 처리
+- **완전한 논블로킹**: I/O 대기 없음
+- **백프레셔 지원**: 느린 컨슈머 자동 제어
+- **함수형 프로그래밍**: 체이닝으로 명확한 흐름
+
+**트레이드오프**:
+- **학습 곡선**: Reactive 패러다임 이해 필요
+- **디버깅 어려움**: 스택 트레이스 복잡
+- **생태계**: 모든 라이브러리가 리액티브를 지원하지 않음
+- **블로킹 호출**: 하나라도 블로킹이면 이점 상실
+
+**선택 기준**:
+```
+WebFlux 적합:
+- I/O 바운드 작업이 많음 (API 호출, DB 쿼리)
+- 높은 동시성 필요 (수천 개 동시 연결)
+- 스트리밍 데이터 처리
+
+MVC 유지:
+- CPU 바운드 작업이 많음
+- 기존 블로킹 라이브러리 많이 사용
+- 팀의 학습 비용 고려
+```
+
+### 3. Saga 패턴 (분산 트랜잭션)
+
+마이크로서비스 환경에서 여러 서비스에 걸친 트랜잭션을 처리합니다.
+
+```java
+// Orchestration 방식 - 중앙 오케스트레이터가 제어
+@Service
+public class OrderSagaOrchestrator {
+
+    public OrderResult createOrder(OrderRequest request) {
+        SagaTransaction saga = new SagaTransaction();
+
+        try {
+            // 1. 주문 생성
+            Order order = orderService.createOrder(request);
+            saga.addCompensation(() -> orderService.cancelOrder(order.getId()));
+
+            // 2. 결제
+            Payment payment = paymentService.processPayment(order);
+            saga.addCompensation(() -> paymentService.refund(payment.getId()));
+
+            // 3. 재고 차감
+            stockService.decreaseStock(order);
+            saga.addCompensation(() -> stockService.increaseStock(order));
+
+            // 4. 배송 시작
+            deliveryService.startDelivery(order);
+            saga.addCompensation(() -> deliveryService.cancelDelivery(order.getId()));
+
+            saga.commit();
+            return OrderResult.success(order);
+
+        } catch (Exception e) {
+            // 실패 시 보상 트랜잭션 실행 (역순)
+            saga.rollback();
+            return OrderResult.failed(e.getMessage());
+        }
+    }
+}
+
+// Choreography 방식 - 이벤트 기반 자율 처리
+@Service
+public class OrderService {
+
+    @Transactional
+    public void createOrder(OrderRequest request) {
+        Order order = orderRepository.save(new Order(request));
+        eventPublisher.publish(new OrderCreatedEvent(order));
+    }
+}
+
+@Service
+public class PaymentService {
+
+    @EventListener
+    @Transactional
+    public void handleOrderCreated(OrderCreatedEvent event) {
+        try {
+            Payment payment = processPayment(event.getOrder());
+            eventPublisher.publish(new PaymentCompletedEvent(payment));
+        } catch (Exception e) {
+            eventPublisher.publish(new PaymentFailedEvent(event.getOrderId()));
+        }
+    }
+
+    @EventListener
+    public void handlePaymentFailed(PaymentFailedEvent event) {
+        // 보상: 주문 취소 이벤트 발행
+        eventPublisher.publish(new CancelOrderEvent(event.getOrderId()));
+    }
+}
+```
+
+**Orchestration vs Choreography**:
+
+| | Orchestration | Choreography |
+|---|---|---|
+| **제어** | 중앙 오케스트레이터 | 각 서비스 자율 |
+| **복잡도** | 로직 집중, 이해 쉬움 | 로직 분산, 추적 어려움 |
+| **결합도** | 높음 (오케스트레이터 의존) | 낮음 (이벤트만 의존) |
+| **확장성** | 오케스트레이터 병목 | 수평 확장 쉬움 |
+
+**트레이드오프**:
+- **장점**: 분산 환경에서 일관성 보장, 실패 시 자동 보상
+- **단점**: 복잡도 증가, 디버깅 어려움, Eventual Consistency
+
+### 4. 서킷 브레이커 (Resilience4j)
+
+외부 API 호출 시 장애를 격리하고 빠르게 실패합니다.
+
+```java
+@Service
+public class ExternalApiService {
+
+    private final CircuitBreaker circuitBreaker;
+
+    @CircuitBreaker(name = "externalApi", fallbackMethod = "fallback")
+    @Retry(name = "externalApi")
+    @RateLimiter(name = "externalApi")
+    public String callExternalApi(String request) {
+        // 외부 API 호출 (느리거나 실패할 수 있음)
+        return restTemplate.postForObject(url, request, String.class);
+    }
+
+    // Fallback 처리
+    public String fallback(String request, Exception e) {
+        log.warn("외부 API 호출 실패, 기본값 반환", e);
+        return "DEFAULT_RESPONSE";
+    }
+}
+
+// 설정
+@Configuration
+public class Resilience4jConfig {
+
+    @Bean
+    public CircuitBreakerConfig circuitBreakerConfig() {
+        return CircuitBreakerConfig.custom()
+            .failureRateThreshold(50)  // 실패율 50% 이상이면 Open
+            .waitDurationInOpenState(Duration.ofSeconds(30))  // 30초 대기
+            .slidingWindowSize(10)  // 최근 10개 요청 기준
+            .build();
+    }
+}
+```
+
+**상태 전환**:
+```
+Closed (정상)
+  ↓ 실패율 > 50%
+Open (차단) - 모든 요청 즉시 실패
+  ↓ 30초 후
+Half-Open (테스트)
+  ↓ 성공하면
+Closed (복구)
+```
+
+**장점**:
+- **빠른 실패**: 장애 서비스를 계속 호출하지 않음
+- **자동 복구**: 일정 시간 후 자동으로 재시도
+- **Fallback**: 대체 응답 제공
+
+**트레이드오프**:
+- **복잡도**: 상태 관리, 모니터링 필요
+- **오탐**: 일시적 장애를 영구 장애로 오인 가능
+
+### 아키텍처 선택 가이드
+
+| 요구사항 | 추천 아키텍처 |
+|---------|--------------|
+| 안정적인 비동기 처리 | 메시지 큐 (Kafka, RabbitMQ) |
+| 높은 동시성 | WebFlux (Reactive) |
+| 분산 트랜잭션 | Saga 패턴 |
+| 외부 API 장애 격리 | 서킷 브레이커 |
+| 간단한 백그라운드 작업 | @Async |
+
+**진화 경로**:
+```
+1단계: @Async (간단한 비동기)
+  ↓
+2단계: + 메시지 큐 (안정성, 재시도)
+  ↓
+3단계: + Saga 패턴 (분산 트랜잭션)
+  ↓
+4단계: WebFlux (완전한 논블로킹)
+```
+
 ## 정리
 
-이 글에서 다룬 내용을 정리하면 다음과 같습니다.
+비동기 처리의 선택은 **기술**과 **아키텍처** 두 가지 차원의 트레이드오프입니다.
 
-- 동기는 간단하지만 느리고, 비동기는 빠르지만 복잡합니다
-- 핵심 비즈니스 로직은 동기로, 부가 작업은 비동기로 처리합니다
-- Spring의 @Async와 CompletableFuture로 비동기 처리를 구현할 수 있습니다
-- 트레이드오프를 고려하여 상황에 맞게 선택해야 합니다
+**기술 레벨의 선택**:
+- **동기**: 간단하고 디버깅 쉬움. 핵심 비즈니스 로직에 적합
+- **@Async**: 간단한 백그라운드 작업. 프록시 기반, 예외 처리 주의
+- **CompletableFuture**: 체이닝과 병렬 처리. 세밀한 제어 가능
+- **트레이드오프**: 복잡도 vs 성능, 디버깅 난이도 vs 처리량
 
-성능 개선을 위해 무조건 비동기를 선택하기보다는, 복잡도와 유지보수성을 함께 고려해야 합니다. 간단한 것이 좋은 것입니다.
+**아키텍처 레벨의 해결책**:
+- **메시지 큐**: 안정적인 비동기 처리, 재시도 보장 (인프라 복잡도 트레이드오프)
+- **WebFlux**: 높은 동시성, 완전한 논블로킹 (학습 곡선 트레이드오프)
+- **Saga 패턴**: 분산 트랜잭션 처리 (복잡도 증가 트레이드오프)
+- **서킷 브레이커**: 외부 API 장애 격리 (상태 관리 복잡도 트레이드오프)
+
+**선택의 기준**:
+1. **작업 특성**: 핵심 로직 vs 부가 작업, I/O 바운드 vs CPU 바운드
+2. **신뢰성 요구사항**: 실패 시 재시도 필요 여부, 순서 보장 필요 여부
+3. **시스템 규모**: 동시 접속자 수, 처리량, 확장성 필요
+4. **팀 역량**: 학습 비용, 운영 경험, 인프라 지원
+
+**진화 전략**:
+```
+시작: 동기 처리 (단순함)
+  ↓ 성능 개선 필요
+1단계: @Async (백그라운드 작업)
+  ↓ 안정성 필요
+2단계: + 메시지 큐 (재시도, 장애 격리)
+  ↓ 분산 환경
+3단계: + Saga 패턴 (분산 트랜잭션)
+  ↓ 극한의 동시성
+4단계: WebFlux (완전한 논블로킹)
+```
+
+**핵심 원칙**:
+- 핵심 비즈니스 로직은 동기로 처리하여 일관성 보장
+- 부가 작업은 비동기로 처리하여 응답 시간 단축
+- 실패 시 재시도가 필요하면 메시지 큐 사용
+- 외부 API 호출은 서킷 브레이커로 장애 격리
+
+성능 개선을 위해 무조건 비동기를 선택하기보다는, 복잡도와 유지보수성을 함께 고려해야 합니다. 현재 요구사항에 맞는 가장 단순한 해결책을 선택하고, 필요에 따라 점진적으로 진화시키는 것이 중요합니다.
