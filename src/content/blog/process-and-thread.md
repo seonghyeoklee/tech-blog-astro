@@ -254,6 +254,454 @@ public RestTemplate restTemplate() {
 public void processHeavyTask() { }
 ```
 
+## 동시성 처리 기술 선택
+
+전통적인 OS 스레드 외에도 다양한 동시성 처리 기술이 있습니다.
+
+### Virtual Thread (Java 21+, Project Loom)
+
+JVM이 관리하는 경량 스레드입니다. OS 스레드가 아니라 JVM이 스케줄링합니다.
+
+```java
+// Virtual Thread 생성
+Thread.startVirtualThread(() -> {
+    System.out.println("Virtual Thread: " + Thread.currentThread());
+});
+
+// Executors로 사용
+try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+    IntStream.range(0, 10_000).forEach(i -> {
+        executor.submit(() -> {
+            Thread.sleep(Duration.ofSeconds(1));
+            return i;
+        });
+    });
+}  // 1만 개의 Virtual Thread가 동시 실행 가능
+```
+
+**장점**:
+- OS 스레드보다 훨씬 가볍습니다 (수백만 개 생성 가능)
+- 블로킹 I/O를 사용해도 OS 스레드를 점유하지 않습니다
+- 기존 Thread API를 그대로 사용 (학습 곡선 낮음)
+
+**단점**:
+- Java 21 이상에서만 사용 가능
+- CPU 바운드 작업에는 이점이 없습니다
+- Pinning 이슈 (synchronized 블록 내에서 블로킹하면 OS 스레드 점유)
+
+### Coroutine (Kotlin)
+
+함수 실행을 중단하고 재개할 수 있는 경량 스레드입니다.
+
+```kotlin
+// Coroutine으로 비동기 처리
+suspend fun fetchUser(id: Long): User {
+    delay(100)  // 스레드 블로킹 없이 중단
+    return userRepository.findById(id)
+}
+
+fun main() = runBlocking {
+    // 10만 개의 코루틴 동시 실행
+    val jobs = List(100_000) {
+        launch {
+            delay(1000)
+            println("Coroutine $it")
+        }
+    }
+    jobs.forEach { it.join() }
+}
+```
+
+**장점**:
+- Virtual Thread보다 더 가볍습니다
+- 구조적 동시성 (Structured Concurrency) 지원
+- 취소, 타임아웃 등 고급 기능 내장
+
+**단점**:
+- Kotlin 전용
+- suspend 함수로 변환 필요 (기존 코드 수정)
+- Java와 혼용 시 복잡도 증가
+
+### Thread-Safe 자료구조
+
+멀티스레드 환경에서 안전하게 사용할 수 있는 자료구조입니다.
+
+```java
+// ConcurrentHashMap - 세그먼트 단위 락
+Map<String, User> userCache = new ConcurrentHashMap<>();
+userCache.putIfAbsent("user1", new User());  // 원자적 연산
+
+// CopyOnWriteArrayList - 쓰기 시 복사
+List<String> listeners = new CopyOnWriteArrayList<>();
+listeners.add("listener1");  // 쓰기는 느리지만 읽기는 빠름
+
+// BlockingQueue - 생산자-소비자 패턴
+BlockingQueue<Task> queue = new LinkedBlockingQueue<>(100);
+queue.put(task);     // 큐가 가득 차면 대기
+Task t = queue.take(); // 큐가 비어 있으면 대기
+```
+
+### 동기화 메커니즘
+
+```java
+// synchronized - 가장 간단하지만 성능 낮음
+public synchronized void increment() {
+    count++;
+}
+
+// ReentrantLock - 더 유연한 제어
+private final ReentrantLock lock = new ReentrantLock();
+public void increment() {
+    lock.lock();
+    try {
+        count++;
+    } finally {
+        lock.unlock();
+    }
+}
+
+// ReadWriteLock - 읽기는 동시, 쓰기는 독점
+private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+public int read() {
+    rwLock.readLock().lock();
+    try {
+        return count;  // 여러 스레드가 동시 읽기 가능
+    } finally {
+        rwLock.readLock().unlock();
+    }
+}
+public void write(int value) {
+    rwLock.writeLock().lock();
+    try {
+        count = value;  // 쓰기는 독점
+    } finally {
+        rwLock.writeLock().unlock();
+    }
+}
+
+// StampedLock - 낙관적 읽기 지원 (Java 8+)
+private final StampedLock sl = new StampedLock();
+public int optimisticRead() {
+    long stamp = sl.tryOptimisticRead();  // 락 없이 읽기
+    int currentCount = count;
+    if (!sl.validate(stamp)) {  // 쓰기가 발생했는지 검증
+        stamp = sl.readLock();  // 실패 시 읽기 락 획득
+        try {
+            currentCount = count;
+        } finally {
+            sl.unlockRead(stamp);
+        }
+    }
+    return currentCount;
+}
+```
+
+### 병렬 처리 라이브러리
+
+```java
+// Fork/Join Framework - 작업 분할 정복
+ForkJoinPool pool = new ForkJoinPool();
+RecursiveTask<Long> task = new SumTask(array, 0, array.length);
+long result = pool.invoke(task);
+
+// Parallel Stream - 간편한 병렬 처리
+List<Integer> numbers = List.of(1, 2, 3, 4, 5);
+int sum = numbers.parallelStream()
+    .mapToInt(Integer::intValue)
+    .sum();
+
+// CompletableFuture - 비동기 파이프라인
+CompletableFuture<User> userFuture = CompletableFuture
+    .supplyAsync(() -> userService.getUser(id))
+    .thenApplyAsync(user -> enrichUser(user))
+    .exceptionally(ex -> getDefaultUser());
+```
+
+### 동시성 기술 비교
+
+| 기술 | 스레드 수 제한 | 메모리 사용 | 블로킹 I/O | 학습 곡선 | 주요 용도 |
+|------|---------------|-------------|------------|-----------|----------|
+| OS Thread | ~수천 개 | 높음 (1MB/스레드) | OS 스레드 점유 | 낮음 | 전통적 서버 |
+| Virtual Thread | 수백만 개 | 낮음 (~1KB/스레드) | JVM 관리 | 낮음 | I/O 집약적 |
+| Coroutine | 수백만 개 | 매우 낮음 | 중단/재개 | 중간 | 비동기 로직 |
+| Reactive | 제한 없음 | 낮음 | Non-blocking | 높음 | 스트림 처리 |
+| Event Loop | 단일 스레드 | 매우 낮음 | Non-blocking | 중간 | 고성능 I/O |
+
+## 아키텍처 레벨의 해결책
+
+스레드 모델 자체를 바꾸는 아키텍처 패턴들입니다.
+
+### Event Loop (Node.js, Netty, Vert.x)
+
+단일 스레드가 이벤트 큐를 처리하는 방식입니다. 블로킹 작업이 없다면 매우 효율적입니다.
+
+```java
+// Netty Event Loop 예시
+EventLoopGroup bossGroup = new NioEventLoopGroup(1);
+EventLoopGroup workerGroup = new NioEventLoopGroup();
+try {
+    ServerBootstrap b = new ServerBootstrap();
+    b.group(bossGroup, workerGroup)
+     .channel(NioServerSocketChannel.class)
+     .childHandler(new ChannelInitializer<SocketChannel>() {
+         @Override
+         public void initChannel(SocketChannel ch) {
+             ch.pipeline().addLast(new HttpServerHandler());
+         }
+     });
+    ChannelFuture f = b.bind(8080).sync();
+} finally {
+    workerGroup.shutdownGracefully();
+    bossGroup.shutdownGracefully();
+}
+```
+
+**특징**:
+- CPU 코어 수만큼 Event Loop 스레드 생성
+- 블로킹 없이 수만 개 연결 처리 가능
+- C10K 문제 해결 (10,000 동시 연결)
+
+**주의사항**:
+- Event Loop에서 블로킹 작업 금지
+- CPU 집약적 작업은 별도 스레드 풀로 위임
+
+### Reactive Streams (Project Reactor, RxJava)
+
+데이터 스트림을 비동기로 처리하는 방식입니다. Spring WebFlux가 이 모델을 사용합니다.
+
+```java
+@RestController
+public class UserController {
+    @GetMapping("/users/{id}")
+    public Mono<User> getUser(@PathVariable Long id) {
+        return userService.findById(id)  // Non-blocking
+            .flatMap(user -> enrichmentService.enrich(user))
+            .timeout(Duration.ofSeconds(3))
+            .onErrorReturn(User.getDefault());
+    }
+
+    @GetMapping("/users")
+    public Flux<User> getUsers() {
+        return userService.findAll()  // 스트림 처리
+            .filter(user -> user.isActive())
+            .take(100);
+    }
+}
+```
+
+**장점**:
+- Backpressure 지원 (소비자가 처리 속도 조절)
+- 적은 스레드로 높은 처리량
+- 함수형 프로그래밍 스타일
+
+**단점**:
+- 학습 곡선 높음
+- 디버깅 어려움
+- JDBC는 블로킹이라 R2DBC 필요
+
+### Actor Model (Akka)
+
+각 Actor가 독립적인 상태를 가지고 메시지로만 통신하는 방식입니다.
+
+```java
+// Akka Actor 예시
+public class UserActor extends AbstractActor {
+    private Map<Long, User> users = new HashMap<>();
+
+    @Override
+    public Receive createReceive() {
+        return receiveBuilder()
+            .match(GetUser.class, msg -> {
+                User user = users.get(msg.getId());
+                getSender().tell(user, getSelf());
+            })
+            .match(UpdateUser.class, msg -> {
+                users.put(msg.getUser().getId(), msg.getUser());
+                getSender().tell("OK", getSelf());
+            })
+            .build();
+    }
+}
+
+// Actor 사용
+ActorSystem system = ActorSystem.create("MySystem");
+ActorRef userActor = system.actorOf(Props.create(UserActor.class));
+userActor.tell(new GetUser(1L), ActorRef.noSender());
+```
+
+**특징**:
+- Actor 간 상태 공유 없음 (Race Condition 없음)
+- 메시지 전달로 통신
+- 장애 격리 및 복구 (Supervision)
+
+### SEDA (Staged Event-Driven Architecture)
+
+작업을 여러 단계(Stage)로 나누고, 각 단계마다 큐와 스레드 풀을 할당하는 방식입니다.
+
+```
+┌─────────┐     ┌─────────┐     ┌─────────┐     ┌─────────┐
+│ Request │────→│  Parse  │────→│ Process │────→│Response │
+│  Queue  │     │  Queue  │     │  Queue  │     │  Queue  │
+└─────────┘     └─────────┘     └─────────┘     └─────────┘
+   ↓ Pool:5       ↓ Pool:10       ↓ Pool:20       ↓ Pool:5
+```
+
+**장점**:
+- 단계별 스레드 풀 크기 최적화
+- 병목 단계 파악 용이
+- 장애 격리 (한 단계 문제가 전체에 영향 안 줌)
+
+**단점**:
+- 설계 복잡도 증가
+- 레이턴시 증가 (큐 대기 시간)
+
+### Message Queue 기반 아키텍처
+
+여러 서비스가 메시지 큐로 통신하는 방식입니다.
+
+```java
+// RabbitMQ Producer
+@Service
+public class OrderService {
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    public void createOrder(Order order) {
+        orderRepository.save(order);
+        rabbitTemplate.convertAndSend("order.created", order);
+        // 이메일 발송은 Consumer가 비동기 처리
+    }
+}
+
+// Consumer
+@RabbitListener(queues = "order.created")
+public void handleOrderCreated(Order order) {
+    emailService.sendOrderConfirmation(order);
+}
+```
+
+**장점**:
+- 서비스 간 결합도 낮음
+- 트래픽 버스트 흡수 (큐가 버퍼 역할)
+- 재시도, DLQ (Dead Letter Queue) 지원
+
+**단점**:
+- 메시지 유실 가능성 (Acknowledgement 필요)
+- 메시지 순서 보장 어려움
+- 인프라 복잡도 증가
+
+## 동시성 모델 선택 가이드
+
+| 상황 | 추천 기술 | 이유 |
+|------|----------|------|
+| 전통적인 CRUD API | OS Thread + Thread Pool | 검증된 방식, 안정적 |
+| I/O 대기가 많은 API | Virtual Thread (Java 21+) | 많은 동시 요청 처리, 간단 |
+| 실시간 스트리밍 | Reactive (WebFlux) | Backpressure, 높은 처리량 |
+| 고성능 네트워크 서버 | Event Loop (Netty) | C10K 문제 해결 |
+| 복잡한 비동기 로직 | Coroutine (Kotlin) | 가독성 좋은 비동기 코드 |
+| 마이크로서비스 간 통신 | Message Queue | 느슨한 결합, 재시도 |
+| 분산 트랜잭션 | Saga Pattern + MQ | 보상 트랜잭션 |
+
+## 트레이드오프
+
+### OS Thread vs Virtual Thread
+
+| 기준 | OS Thread | Virtual Thread |
+|------|-----------|----------------|
+| 스레드 수 | ~수천 개 | 수백만 개 |
+| 컨텍스트 스위칭 | OS 커널 개입 (느림) | JVM 내부 (빠름) |
+| 메모리 | 1MB/스레드 | ~1KB/스레드 |
+| 블로킹 I/O | OS 스레드 점유 | Carrier Thread 해제 |
+| 호환성 | 모든 Java 버전 | Java 21+ |
+| Pinning 이슈 | 없음 | synchronized에서 발생 가능 |
+
+### Thread-per-Request vs Event Loop
+
+| 기준 | Thread-per-Request | Event Loop |
+|------|-------------------|------------|
+| 프로그래밍 모델 | 동기 (직관적) | 비동기 (콜백/Promise) |
+| 동시 연결 수 | ~수천 | 수만~수십만 |
+| 블로킹 작업 | 가능 | 불가 (별도 처리 필요) |
+| CPU 사용률 | 낮음 (대기 많음) | 높음 (효율적) |
+| 디버깅 | 쉬움 | 어려움 |
+| 생태계 | 성숙 (JDBC, JPA) | 제한적 (R2DBC) |
+
+### Reactive vs Imperative
+
+| 기준 | Reactive | Imperative |
+|------|----------|------------|
+| 학습 곡선 | 높음 | 낮음 |
+| 처리량 | 매우 높음 | 보통 |
+| 메모리 효율 | 높음 | 보통 |
+| 디버깅 | 어려움 | 쉬움 |
+| 에러 처리 | 복잡 (onError) | 간단 (try-catch) |
+| DB 접근 | R2DBC (제한적) | JDBC/JPA (성숙) |
+
+## 진화 경로
+
+실무에서는 단계적으로 진화하는 것이 좋습니다.
+
+```
+1단계: 단순 멀티스레드
+  - Tomcat 기본 설정
+  - Spring MVC
+  - 검증된 방식, 낮은 리스크
+
+2단계: 스레드 풀 최적화
+  - 작업 유형별 스레드 풀 분리
+  - @Async로 비동기 처리
+  - 모니터링 도구 도입
+
+3단계: Virtual Thread 도입 (Java 21+)
+  - I/O 대기가 많은 작업에 적용
+  - 기존 코드 그대로 사용
+  - Pinning 이슈만 주의
+
+4단계: 아키텍처 레벨 개선
+  - 상황에 따라 선택:
+    - I/O 집약적: Event Loop (Netty)
+    - 스트림 처리: Reactive (WebFlux)
+    - 서비스 분리: Message Queue
+    - 복잡한 상태: Actor Model (Akka)
+
+5단계: 하이브리드
+  - 동기 API (Spring MVC) + 비동기 처리 (Reactive)
+  - Thread-per-Request + Event Loop (Netty)
+  - 작업 특성에 따라 혼용
+```
+
+## 실전 선택 기준
+
+**다음과 같은 경우 OS Thread를 유지하세요**:
+- 기존 Spring MVC 애플리케이션이 잘 동작 중
+- 트래픽이 크지 않음 (초당 수백 요청 이하)
+- 팀이 멀티스레드 프로그래밍에 익숙
+- 빠른 개발과 안정성이 중요
+
+**다음과 같은 경우 Virtual Thread를 고려하세요** (Java 21+):
+- I/O 대기가 많은 작업 (DB, API 호출)
+- 동시 연결 수가 많음 (수천~수만)
+- 기존 코드를 크게 바꾸고 싶지 않음
+- 메모리 사용량을 줄이고 싶음
+
+**다음과 같은 경우 Reactive를 고려하세요**:
+- 매우 높은 처리량 필요 (초당 수만 요청)
+- 스트림 데이터 처리
+- Backpressure가 중요
+- 팀의 학습 의지가 있음
+
+**다음과 같은 경우 Event Loop를 고려하세요**:
+- 네트워크 서버 (게임, 채팅)
+- 수만 개 이상의 동시 연결
+- 낮은 레이턴시가 중요
+- 블로킹 작업이 거의 없음
+
+**다음과 같은 경우 Message Queue를 고려하세요**:
+- 마이크로서비스 아키텍처
+- 서비스 간 느슨한 결합 필요
+- 비동기 작업 처리 (이메일, 알림)
+- 트래픽 버스트 대응
+
 ## 정리
 
 - 프로세스는 독립된 메모리 공간을 가지는 실행 단위입니다
@@ -262,3 +710,6 @@ public void processHeavyTask() { }
 - 공유 자원 접근 시 Race Condition을 주의해야 합니다 (AtomicInteger, synchronized)
 - 스레드 풀은 CPU/I/O 바운드 특성에 따라 크기를 조절합니다
 - 실무에서는 모니터링 도구로 스레드 상태를 확인하며 튜닝합니다
+- **동시성 기술 선택**: OS Thread, Virtual Thread, Coroutine, Reactive 중 상황에 맞게 선택
+- **아키텍처 패턴**: Event Loop, Actor Model, SEDA, Message Queue로 스레드 모델 개선
+- **진화적 접근**: 단순한 방식에서 시작해서 필요에 따라 고도화
