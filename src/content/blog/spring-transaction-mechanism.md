@@ -422,14 +422,469 @@ public void saveOrderWithTransaction(Order order) {
 
 트랜잭션이 길어지면 커넥션을 오래 점유하고, 다른 트랜잭션이 대기하게 됩니다.
 
+## 프로그래매틱 트랜잭션 관리
+
+@Transactional로 해결되지 않는 경우 코드로 직접 트랜잭션을 관리할 수 있습니다.
+
+### TransactionTemplate
+
+선언적 @Transactional 대신 코드로 트랜잭션을 제어합니다.
+
+```java
+@Service
+public class OrderService {
+    private final TransactionTemplate transactionTemplate;
+    private final OrderRepository orderRepository;
+
+    public OrderService(PlatformTransactionManager transactionManager,
+                        OrderRepository orderRepository) {
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.orderRepository = orderRepository;
+    }
+
+    public void createOrder(Order order) {
+        transactionTemplate.execute(status -> {
+            try {
+                orderRepository.save(order);
+                // 조건에 따라 롤백
+                if (order.getAmount() < 0) {
+                    status.setRollbackOnly();
+                }
+                return null;
+            } catch (Exception e) {
+                status.setRollbackOnly();
+                throw e;
+            }
+        });
+    }
+}
+```
+
+**사용 사례**:
+- 조건부 트랜잭션 처리
+- 부분 롤백이 필요한 경우
+- 트랜잭션 내부에서 세밀한 제어가 필요한 경우
+
+```java
+// 복잡한 트랜잭션 제어
+public void processOrders(List<Order> orders) {
+    for (Order order : orders) {
+        transactionTemplate.execute(status -> {
+            try {
+                orderRepository.save(order);
+                // 개별 주문 실패는 무시하고 계속 진행
+            } catch (Exception e) {
+                log.warn("주문 처리 실패: {}", order.getId(), e);
+                status.setRollbackOnly();
+                // 다음 주문 계속 처리
+            }
+            return null;
+        });
+    }
+}
+```
+
+**트레이드오프**:
+- **장점**: 세밀한 제어, 조건부 롤백, 반환값 처리
+- **단점**: 코드 복잡도 증가, 선언적 방식보다 가독성 낮음
+
+### 트랜잭션 전파 기본
+
+여러 트랜잭션 메서드가 호출될 때 어떻게 동작하는지 제어합니다.
+
+```java
+@Transactional
+public void outerMethod() {
+    innerMethod();  // 어떻게 동작할까?
+}
+
+@Transactional(propagation = Propagation.REQUIRED)  // 기본값
+public void innerMethod() {
+    // 외부 트랜잭션에 참여
+}
+```
+
+**주요 전파 옵션**:
+
+| 전파 옵션 | 동작 |
+|----------|------|
+| **REQUIRED** | 기존 트랜잭션 참여, 없으면 새로 생성 (기본값) |
+| **REQUIRES_NEW** | 항상 새 트랜잭션 생성, 기존 트랜잭션 일시 중단 |
+| **NESTED** | 중첩 트랜잭션 생성 (Savepoint 사용) |
+
+```java
+@Service
+public class OrderService {
+
+    @Transactional
+    public void createOrder(Order order) {
+        orderRepository.save(order);
+        // 알림 실패해도 주문은 성공
+        notificationService.sendWithNewTransaction(order);
+    }
+}
+
+@Service
+public class NotificationService {
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void sendWithNewTransaction(Order order) {
+        // 독립적인 트랜잭션
+        // 실패해도 외부 트랜잭션에 영향 없음
+    }
+}
+```
+
+**트레이드오프**:
+- REQUIRED: 단순하지만 부분 롤백 불가
+- REQUIRES_NEW: 독립적이지만 커넥션 2개 필요
+- NESTED: 부분 롤백 가능하지만 모든 DB가 지원하지 않음
+
+## 아키텍처로 풀어내는 트랜잭션 문제
+
+@Transactional만으로는 해결되지 않는 복잡한 문제가 많습니다. 아키텍처 패턴으로 근본적으로 해결할 수 있습니다.
+
+### 1. 이벤트 기반 아키텍처
+
+트랜잭션 경계를 이벤트로 명확히 분리합니다.
+
+```java
+// 주문 생성 (트랜잭션 내)
+@Service
+public class OrderService {
+
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Transactional
+    public void createOrder(OrderRequest request) {
+        Order order = new Order(request);
+        orderRepository.save(order);
+
+        // 이벤트 발행 (트랜잭션 커밋 후 실행)
+        eventPublisher.publishEvent(new OrderCreatedEvent(order));
+    }
+}
+
+// 이벤트 처리 (별도 트랜잭션)
+@Component
+public class OrderEventListener {
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleOrderCreated(OrderCreatedEvent event) {
+        // 트랜잭션이 성공적으로 커밋된 후에만 실행
+        emailService.sendConfirmation(event.getOrderId());
+        smsService.sendNotification(event.getOrderId());
+        // 실패해도 주문 트랜잭션에 영향 없음
+    }
+}
+```
+
+**TransactionPhase 옵션**:
+- **AFTER_COMMIT**: 트랜잭션 커밋 후 (기본값, 가장 많이 사용)
+- **AFTER_ROLLBACK**: 트랜잭션 롤백 후
+- **AFTER_COMPLETION**: 커밋/롤백 후 (성공/실패 무관)
+- **BEFORE_COMMIT**: 트랜잭션 커밋 전
+
+**효과**:
+- 트랜잭션 범위 최소화
+- 부가 작업(이메일, 알림)이 핵심 로직에 영향 없음
+- 실패 시 재처리 가능
+
+**트레이드오프**:
+- 이벤트가 유실될 수 있음 (서버 재시작)
+- 비동기 처리로 즉시 확인 불가
+
+### 2. Outbox Pattern
+
+트랜잭션과 메시지 발행의 원자성을 보장합니다.
+
+```java
+// Outbox 테이블
+@Entity
+public class OutboxEvent {
+    @Id @GeneratedValue
+    private Long id;
+    private String eventType;
+    private String payload;
+    private LocalDateTime createdAt;
+    private boolean published;
+}
+
+// 주문 생성 시 Outbox에 함께 저장
+@Service
+public class OrderService {
+
+    @Transactional
+    public void createOrder(OrderRequest request) {
+        // 1. 주문 저장
+        Order order = orderRepository.save(new Order(request));
+
+        // 2. Outbox 이벤트 저장 (같은 트랜잭션)
+        OutboxEvent event = new OutboxEvent(
+            "OrderCreated",
+            objectMapper.writeValueAsString(order)
+        );
+        outboxRepository.save(event);
+
+        // 트랜잭션 커밋 → 주문과 이벤트가 함께 저장됨 (원자성)
+    }
+}
+
+// 별도 스케줄러가 Outbox를 폴링하여 메시지 발행
+@Component
+public class OutboxPublisher {
+
+    @Scheduled(fixedDelay = 1000)
+    @Transactional
+    public void publishEvents() {
+        List<OutboxEvent> events = outboxRepository.findByPublishedFalse();
+
+        for (OutboxEvent event : events) {
+            try {
+                // Kafka로 발행
+                kafkaTemplate.send("order-events", event.getPayload());
+
+                // 발행 완료 표시
+                event.setPublished(true);
+                outboxRepository.save(event);
+            } catch (Exception e) {
+                log.error("이벤트 발행 실패", e);
+                // 재시도 (다음 폴링에서 재시도됨)
+            }
+        }
+    }
+}
+```
+
+**동작 흐름**:
+```
+1. 주문 저장 + Outbox 이벤트 저장 (같은 트랜잭션)
+   ↓
+2. 트랜잭션 커밋 (원자성 보장)
+   ↓
+3. 스케줄러가 Outbox 폴링
+   ↓
+4. 메시지 큐(Kafka)로 발행
+   ↓
+5. published = true로 업데이트
+```
+
+**효과**:
+- 트랜잭션과 메시지 발행의 원자성 보장
+- 메시지 유실 방지
+- At-least-once 전달 보장
+
+**트레이드오프**:
+- Outbox 테이블 관리 필요
+- 폴링 오버헤드
+- 약간의 지연 시간 (1~2초)
+
+### 3. Saga 패턴 (분산 트랜잭션)
+
+마이크로서비스 환경에서 여러 서비스에 걸친 트랜잭션을 처리합니다.
+
+```java
+// Orchestration 방식 - 주문 서비스가 전체 흐름 제어
+@Service
+public class OrderSagaOrchestrator {
+
+    public OrderResult createOrder(OrderRequest request) {
+        // 1. 주문 생성 (Order Service)
+        Order order = orderService.createOrder(request);
+
+        try {
+            // 2. 결제 (Payment Service)
+            Payment payment = paymentService.processPayment(order);
+
+            // 3. 재고 차감 (Inventory Service)
+            inventoryService.decreaseStock(order);
+
+            // 4. 배송 시작 (Delivery Service)
+            deliveryService.startDelivery(order);
+
+            return OrderResult.success(order);
+
+        } catch (PaymentFailedException e) {
+            // 보상 트랜잭션: 주문 취소
+            orderService.cancelOrder(order.getId());
+            return OrderResult.failed("결제 실패");
+
+        } catch (StockInsufficientException e) {
+            // 보상 트랜잭션: 결제 취소 → 주문 취소
+            paymentService.refund(payment.getId());
+            orderService.cancelOrder(order.getId());
+            return OrderResult.failed("재고 부족");
+        }
+    }
+}
+
+// Choreography 방식 - 이벤트 기반 자율 처리
+@Service
+public class OrderService {
+
+    @Transactional
+    public void createOrder(OrderRequest request) {
+        Order order = orderRepository.save(new Order(request));
+        eventPublisher.publish(new OrderCreatedEvent(order));
+    }
+
+    @EventListener
+    @Transactional
+    public void handlePaymentFailed(PaymentFailedEvent event) {
+        // 보상: 주문 취소
+        Order order = orderRepository.findById(event.getOrderId());
+        order.cancel();
+    }
+}
+
+@Service
+public class PaymentService {
+
+    @EventListener
+    @Transactional
+    public void handleOrderCreated(OrderCreatedEvent event) {
+        try {
+            Payment payment = processPayment(event.getOrder());
+            eventPublisher.publish(new PaymentCompletedEvent(payment));
+        } catch (Exception e) {
+            eventPublisher.publish(new PaymentFailedEvent(event.getOrderId()));
+        }
+    }
+}
+```
+
+**Orchestration vs Choreography**:
+
+| | Orchestration | Choreography |
+|---|---|---|
+| **제어** | 중앙 조정자가 전체 흐름 제어 | 각 서비스가 이벤트에 반응 |
+| **복잡도** | 로직 집중, 이해 쉬움 | 로직 분산, 추적 어려움 |
+| **결합도** | 높음 (조정자에 의존) | 낮음 (이벤트만 의존) |
+| **롤백** | 명시적 보상 트랜잭션 | 이벤트 기반 보상 |
+
+**트레이드오프**:
+- **장점**: 분산 환경에서 일관성 보장, 서비스 독립성
+- **단점**: 복잡도 증가, Eventual Consistency, 디버깅 어려움
+
+### 4. CQRS (Command Query Responsibility Segregation)
+
+Command(쓰기)와 Query(읽기)를 분리하여 트랜잭션 복잡도를 낮춥니다.
+
+```java
+// Command (쓰기) - 강한 트랜잭션 일관성
+@Service
+public class OrderCommandService {
+
+    @Transactional
+    public void createOrder(CreateOrderCommand command) {
+        Order order = new Order(command);
+        orderRepository.save(order);
+
+        // 읽기 모델 업데이트 이벤트 발행
+        eventPublisher.publish(new OrderCreatedEvent(order));
+    }
+}
+
+// Query (읽기) - 읽기 전용, 트랜잭션 불필요
+@Service
+public class OrderQueryService {
+
+    @Transactional(readOnly = true)
+    public OrderSummary getOrderSummary(Long orderId) {
+        // 읽기 전용 모델에서 조회 (역정규화된 테이블)
+        return orderReadRepository.findSummaryById(orderId);
+    }
+}
+
+// 읽기 모델 업데이트 (비동기)
+@Component
+public class OrderReadModelUpdater {
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void updateReadModel(OrderCreatedEvent event) {
+        // 읽기 최적화된 모델 업데이트
+        OrderSummary summary = OrderSummary.from(event.getOrder());
+        orderReadRepository.save(summary);
+    }
+}
+```
+
+**효과**:
+- 쓰기는 트랜잭션 일관성 유지
+- 읽기는 트랜잭션 오버헤드 없이 빠르게
+- 각각 독립적으로 확장 가능
+
+**트레이드오프**:
+- 읽기/쓰기 모델 동기화 필요
+- Eventual Consistency
+- 복잡도 증가
+
+### 아키텍처 선택 가이드
+
+| 문제 | 해결책 |
+|------|--------|
+| 외부 API 호출이 트랜잭션 범위에 포함됨 | 이벤트 기반 (TransactionalEventListener) |
+| 메시지 발행이 트랜잭션과 함께 실패 | Outbox Pattern |
+| 마이크로서비스 간 트랜잭션 필요 | Saga 패턴 |
+| 복잡한 조회가 트랜잭션을 느리게 함 | CQRS (읽기/쓰기 분리) |
+
+**진화 경로**:
+```
+1단계: @Transactional (단일 서비스)
+  ↓
+2단계: + 이벤트 기반 (트랜잭션 경계 분리)
+  ↓
+3단계: + Outbox Pattern (메시지 원자성)
+  ↓
+4단계: Saga 패턴 (분산 트랜잭션)
+  ↓
+5단계: CQRS (읽기/쓰기 완전 분리)
+```
+
 ## 정리
 
-이 글에서 다룬 내용을 정리하면 다음과 같습니다.
+Spring 트랜잭션 관리는 **선언적 방식**과 **아키텍처 패턴**으로 접근할 수 있습니다.
 
-- Spring은 트랜잭션의 시작과 종료를 관리하고, DB는 실제 트랜잭션을 처리합니다
-- @Transactional은 프록시를 통해 동작하며, 메서드 호출 전후에 트랜잭션 코드를 삽입합니다
-- 같은 클래스 내부 호출은 프록시를 거치지 않아 트랜잭션이 적용되지 않습니다
-- PlatformTransactionManager가 커넥션 획득과 트랜잭션 관리를 담당합니다
-- 트랜잭션은 하나의 커넥션을 사용하며, 종료 시 커넥션을 풀에 반납합니다
+**기본 동작 원리**:
+- Spring: 트랜잭션 시작(BEGIN)/종료(COMMIT/ROLLBACK) 관리
+- Database: ACID 보장, 격리 수준 처리, 실제 데이터 변경/복구
+- Proxy: @Transactional 메서드 호출 전후에 트랜잭션 코드 삽입
+- PlatformTransactionManager: 커넥션 획득/반납, 트랜잭션 추상화
 
-다음 글에서는 트랜잭션 전파 옵션에 대해 다루겠습니다.
+**트랜잭션 관리 방식**:
+- **선언적 (@Transactional)**: 간단하지만 세밀한 제어 어려움
+- **프로그래매틱 (TransactionTemplate)**: 조건부 롤백, 세밀한 제어 가능
+- **트랜잭션 전파**: REQUIRED(기본), REQUIRES_NEW(독립), NESTED(중첩)
+
+**주의사항**:
+- 내부 호출: 프록시를 거치지 않아 트랜잭션 미적용 → 클래스 분리
+- Private 메서드: 프록시 불가 → Public 메서드만 사용
+- Checked Exception: 기본적으로 롤백 안 됨 → rollbackFor 명시
+- 트랜잭션 범위: 외부 API 호출은 트랜잭션 밖으로 분리
+
+**아키텍처 레벨 해결책**:
+- **이벤트 기반**: TransactionalEventListener로 트랜잭션 경계 분리 (부가 작업 독립화)
+- **Outbox Pattern**: 트랜잭션과 메시지 발행의 원자성 보장 (메시지 유실 방지)
+- **Saga 패턴**: 분산 트랜잭션 대안, 보상 트랜잭션 (마이크로서비스 환경)
+- **CQRS**: Command/Query 분리, 각각 최적화 (복잡도 vs 성능 트레이드오프)
+
+**진화 전략**:
+```
+1단계: @Transactional (단일 서비스 기본)
+  ↓
+2단계: + TransactionalEventListener (경계 분리)
+  ↓
+3단계: + Outbox Pattern (메시지 원자성)
+  ↓
+4단계: Saga 패턴 (분산 환경)
+  ↓
+5단계: CQRS (읽기/쓰기 완전 분리)
+```
+
+**핵심 원칙**:
+- 트랜잭션 범위는 최소화하되, 일관성이 필요한 작업은 함께 묶어야 합니다
+- 외부 API, 무거운 작업은 트랜잭션 밖으로 분리하세요
+- 커넥션은 한정된 자원입니다. 빠르게 획득하고 빠르게 반납하세요
+- 단순한 경우 @Transactional로 충분하지만, 복잡한 분산 환경에서는 아키텍처 패턴이 필요합니다
+
+@Transactional은 강력하지만 만능은 아닙니다. 문제의 복잡도에 맞는 적절한 해결책을 선택하는 것이 중요합니다.
