@@ -1,0 +1,295 @@
+---
+import { Image } from 'astro:assets';
+import FormattedDate from './FormattedDate.astro';
+
+// Import placeholder images
+import placeholder1 from '../assets/blog-placeholder-1.jpg';
+import placeholder2 from '../assets/blog-placeholder-2.jpg';
+import placeholder3 from '../assets/blog-placeholder-3.jpg';
+import placeholder4 from '../assets/blog-placeholder-4.jpg';
+import placeholder5 from '../assets/blog-placeholder-5.jpg';
+
+interface Props {
+	title: string;
+	description: string;
+	pubDate: Date;
+	heroImage?: string;
+	tags?: string[];
+	series?: string;
+	seriesOrder?: number;
+	slug: string;
+	index: number;
+}
+
+const { title, description, pubDate, heroImage, tags, series, seriesOrder, slug, index } = Astro.props;
+
+const placeholders = [placeholder1, placeholder2, placeholder3, placeholder4, placeholder5];
+
+// Thumbnail selection logic
+const getImageSource = () => {
+	if (heroImage) {
+		return heroImage;
+	}
+
+	// Use tag-based hash for consistent placeholder selection
+	if (tags && tags.length > 0) {
+		const tagHash = tags[0].toLowerCase().charCodeAt(0);
+		return placeholders[tagHash % 5];
+	}
+
+	// Fallback to index-based selection
+	return placeholders[index % 5];
+};
+
+const imageSrc = getImageSource();
+---
+
+<a href={`/blog/${slug}/`} class="blog-card" data-tags={tags?.join(',') || ''}>
+	<div class="card-image-wrapper">
+		<Image
+			src={imageSrc}
+			alt={title}
+			width={400}
+			height={225}
+			format="webp"
+			quality={80}
+			loading={index < 8 ? 'eager' : 'lazy'}
+			class="card-image"
+		/>
+		{series && (
+			<div class="series-badge">
+				<span class="series-icon">📚</span>
+				<span class="series-text">{series}</span>
+				{seriesOrder && <span class="series-order">#{seriesOrder}</span>}
+			</div>
+		)}
+	</div>
+
+	<div class="card-content">
+		<h2 class="card-title">{title}</h2>
+		<div class="card-date">
+			<FormattedDate date={pubDate} />
+		</div>
+		<p class="card-description">{description}</p>
+		{tags && tags.length > 0 && (
+			<div class="card-tags">
+				{tags.map((tag) => (
+					<span class={`tag tag-${tag.toLowerCase()}`}>{tag}</span>
+				))}
+			</div>
+		)}
+	</div>
+</a>
+
+<style>
+	.blog-card {
+		display: flex;
+		flex-direction: column;
+		background: var(--card-bg);
+		border-radius: 12px;
+		overflow: hidden;
+		border: 1px solid rgb(var(--gray-light));
+		transition: transform 0.2s ease, box-shadow 0.2s ease;
+		text-decoration: none;
+		color: inherit;
+		height: 100%;
+	}
+
+	.blog-card:hover {
+		transform: translateY(-4px);
+		box-shadow: 0 4px 8px rgba(var(--gray), 0.15), 0 8px 16px rgba(var(--gray), 0.1);
+	}
+
+	.blog-card:focus-within {
+		transform: translateY(-4px);
+		box-shadow: 0 4px 8px rgba(var(--gray), 0.15), 0 8px 16px rgba(var(--gray), 0.1);
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.blog-card {
+			transition: none;
+		}
+		.blog-card:hover,
+		.blog-card:focus-within {
+			transform: none;
+		}
+		.card-image {
+			transition: none;
+		}
+	}
+
+	.card-image-wrapper {
+		position: relative;
+		width: 100%;
+		aspect-ratio: 16 / 9;
+		overflow: hidden;
+		background: rgb(var(--gray-light));
+	}
+
+	.card-image {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		transition: transform 0.3s ease;
+	}
+
+	.blog-card:hover .card-image {
+		transform: scale(1.05);
+	}
+
+	.series-badge {
+		position: absolute;
+		top: 12px;
+		left: 12px;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		background: rgba(0, 0, 0, 0.75);
+		backdrop-filter: blur(8px);
+		color: white;
+		padding: 6px 12px;
+		border-radius: 6px;
+		font-size: 0.85em;
+		font-weight: 600;
+		z-index: 1;
+	}
+
+	.series-icon {
+		font-size: 1em;
+	}
+
+	.series-text {
+		font-size: 0.9em;
+	}
+
+	.series-order {
+		opacity: 0.9;
+		font-size: 0.9em;
+	}
+
+	.card-content {
+		display: flex;
+		flex-direction: column;
+		padding: 1.25em;
+		flex: 1;
+	}
+
+	.card-title {
+		font-size: 1.25em;
+		font-weight: 700;
+		line-height: 1.3;
+		margin: 0 0 0.5em 0;
+		color: rgb(var(--black));
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.card-date {
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+		margin-bottom: 0.75em;
+	}
+
+	.card-description {
+		font-size: 0.95em;
+		line-height: 1.6;
+		color: rgb(var(--gray));
+		margin: 0 0 1em 0;
+		display: -webkit-box;
+		-webkit-line-clamp: 3;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		flex: 1;
+	}
+
+	.card-tags {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5em;
+		margin-top: auto;
+	}
+
+	.tag {
+		display: inline-block;
+		padding: 0.25em 0.75em;
+		border-radius: 4px;
+		font-size: 0.8em;
+		font-weight: 600;
+		transition: opacity 0.2s ease;
+	}
+
+	.blog-card:hover .tag {
+		opacity: 0.9;
+	}
+
+	/* Tag colors - matching existing theme */
+	.tag-java { background: #007396; color: white; }
+	.tag-spring { background: #6DB33F; color: white; }
+	.tag-jpa { background: #59666C; color: white; }
+	.tag-mybatis { background: #B7312C; color: white; }
+	.tag-database { background: #336791; color: white; }
+	.tag-network { background: #0066CC; color: white; }
+	.tag-http { background: #005A9C; color: white; }
+	.tag-tcp { background: #004B87; color: white; }
+	.tag-performance { background: #FF6B35; color: white; }
+	.tag-memory { background: #9B59B6; color: white; }
+	.tag-gc { background: #E74C3C; color: white; }
+	.tag-async { background: #16A085; color: white; }
+	.tag-sync { background: #2C3E50; color: white; }
+	.tag-concurrency { background: #8E44AD; color: white; }
+	.tag-architecture { background: #34495E; color: white; }
+
+	/* Dark mode adjustments */
+	[data-theme="dark"] .series-badge {
+		background: rgba(255, 255, 255, 0.15);
+		backdrop-filter: blur(8px);
+		color: rgb(var(--black));
+	}
+
+	[data-theme="dark"] .card-image-wrapper {
+		background: rgb(var(--gray-light));
+	}
+
+	/* Responsive adjustments */
+	@media (max-width: 720px) {
+		.card-content {
+			padding: 1em;
+		}
+
+		.card-title {
+			font-size: 1.1em;
+		}
+
+		.card-description {
+			-webkit-line-clamp: 2;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.series-badge {
+			top: 8px;
+			left: 8px;
+			padding: 4px 8px;
+			font-size: 0.75em;
+		}
+
+		.card-title {
+			font-size: 1em;
+		}
+
+		.card-description {
+			font-size: 0.9em;
+		}
+
+		.tag {
+			font-size: 0.75em;
+			padding: 0.2em 0.6em;
+		}
+	}
+</style>

@@ -4,9 +4,9 @@ import { ViewTransitions } from 'astro:transitions';
 import Analytics from '@vercel/analytics/astro';
 import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
-import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import StructuredData from '../../components/StructuredData.astro';
+import BlogCard from '../../components/BlogCard.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 
 const posts = (await getCollection('blog')).sort(
@@ -125,128 +125,11 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 				border-color: #06B6D4;
 			}
 
-			/* 글 목록 */
-			.posts-section h2 {
-				font-size: 1.3em;
-				margin-bottom: 1.5em;
-				color: rgb(var(--gray));
-				font-weight: 500;
-			}
-			.post-list {
-				list-style: none;
-				padding: 0;
-				margin: 0;
-			}
-			.post-item {
-				padding: 1.5em 0;
-				border-bottom: 1px solid rgb(var(--gray-light));
-			}
-			.post-item:last-child {
-				border-bottom: none;
-			}
-			.post-link {
-				text-decoration: none;
-				display: block;
-			}
-			.post-link:hover .post-title {
-				color: var(--accent);
-			}
-			.post-header {
-				display: flex;
-				justify-content: space-between;
-				align-items: flex-start;
-				gap: 1em;
-				margin-bottom: 0.5em;
-			}
-			.post-title {
-				font-size: 1.25em;
-				margin: 0;
-				color: rgb(var(--black));
-				line-height: 1.4;
-				transition: color 0.2s ease;
-			}
-			.post-date {
-				color: rgb(var(--gray));
-				font-size: 0.85em;
-				white-space: nowrap;
-			}
-			.post-description {
-				color: rgb(var(--gray));
-				font-size: 0.95em;
-				margin: 0.5em 0;
-				line-height: 1.6;
-			}
-			.post-tags {
-				display: flex;
-				gap: 0.5em;
-				margin-top: 0.8em;
-				flex-wrap: wrap;
-			}
-			.tag {
-				font-size: 0.75em;
-				padding: 0.25em 0.7em;
-				border-radius: 4px;
-				font-weight: 600;
-			}
-			.tag-java {
-				background-color: #f89820;
-				color: white;
-			}
-			.tag-kotlin {
-				background-color: #7F52FF;
-				color: white;
-			}
-			.tag-spring {
-				background-color: #6DB33F;
-				color: white;
-			}
-			.tag-architecture {
-				background-color: #3498db;
-				color: white;
-			}
-			.tag-database {
-				background-color: #336791;
-				color: white;
-			}
-			.tag-mysql {
-				background-color: #4479A1;
-				color: white;
-			}
-			.tag-jpa {
-				background-color: #59666C;
-				color: white;
-			}
-			.tag-redis {
-				background-color: #DC382D;
-				color: white;
-			}
-			.tag-kafka {
-				background-color: #231F20;
-				color: white;
-			}
-			.tag-docker {
-				background-color: #2496ED;
-				color: white;
-			}
-			.tag-kubernetes {
-				background-color: #326CE5;
-				color: white;
-			}
-			.tag-aws {
-				background-color: #FF9900;
-				color: white;
-			}
-			.tag-cs {
-				background-color: #6366F1;
-				color: white;
-			}
-			.tag-os {
-				background-color: #8B5CF6;
-				color: white;
-			}
-			.tag-network {
-				background-color: #06B6D4;
-				color: white;
+			/* 글 목록 - 그리드 레이아웃 */
+			.post-grid {
+				display: grid;
+				grid-template-columns: repeat(4, 1fr);
+				gap: 1.5em;
 			}
 
 			/* 빈 상태 */
@@ -266,13 +149,25 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 				margin-bottom: 1em;
 			}
 
-			@media (max-width: 720px) {
-				.post-header {
-					flex-direction: column;
-					gap: 0.3em;
+			/* 반응형 그리드 레이아웃 */
+			@media (max-width: 960px) {
+				.post-grid {
+					grid-template-columns: repeat(3, 1fr);
+					gap: 1.25em;
 				}
-				.post-title {
-					font-size: 1.1em;
+			}
+
+			@media (max-width: 720px) {
+				.post-grid {
+					grid-template-columns: repeat(2, 1fr);
+					gap: 1em;
+				}
+			}
+
+			@media (max-width: 480px) {
+				.post-grid {
+					grid-template-columns: 1fr;
+					gap: 1em;
 				}
 			}
 		</style>
@@ -297,28 +192,21 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 						<p>아직 작성된 글이 없습니다.</p>
 					</div>
 				) : (
-					<ul class="post-list" id="post-list">
-						{posts.map((post) => (
-							<li class="post-item" data-tags={post.data.tags?.join(',') || ''}>
-								<a href={`/blog/${post.id}/`} class="post-link">
-									<div class="post-header">
-										<h3 class="post-title">{post.data.title}</h3>
-										<span class="post-date">
-											<FormattedDate date={post.data.pubDate} />
-										</span>
-									</div>
-									<p class="post-description">{post.data.description}</p>
-									{post.data.tags && (
-										<div class="post-tags">
-											{post.data.tags.map((tag) => (
-												<span class={`tag tag-${tag.toLowerCase()}`}>{tag}</span>
-											))}
-										</div>
-									)}
-								</a>
-							</li>
+					<div class="post-grid" id="post-grid">
+						{posts.map((post, index) => (
+							<BlogCard
+								title={post.data.title}
+								description={post.data.description}
+								pubDate={post.data.pubDate}
+								heroImage={post.data.heroImage}
+								tags={post.data.tags}
+								series={post.data.series}
+								seriesOrder={post.data.seriesOrder}
+								slug={post.id}
+								index={index}
+							/>
 						))}
-					</ul>
+					</div>
 				)}
 			</section>
 		</main>
@@ -327,7 +215,7 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 		<script>
 			document.addEventListener('DOMContentLoaded', () => {
 				const filterBtns = document.querySelectorAll('.filter-btn');
-				const postItems = document.querySelectorAll('.post-item');
+				const blogCards = document.querySelectorAll('.blog-card');
 				const postCount = document.getElementById('post-count');
 
 				filterBtns.forEach(btn => {
@@ -339,14 +227,14 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 						const selectedTag = btn.getAttribute('data-tag');
 						let visibleCount = 0;
 
-						postItems.forEach(item => {
-							const itemTags = item.getAttribute('data-tags') || '';
+						blogCards.forEach(card => {
+							const cardTags = card.getAttribute('data-tags') || '';
 
-							if (selectedTag === 'all' || itemTags.includes(selectedTag)) {
-								(item as HTMLElement).style.display = 'block';
+							if (selectedTag === 'all' || cardTags.includes(selectedTag)) {
+								(card as HTMLElement).style.display = 'flex';
 								visibleCount++;
 							} else {
-								(item as HTMLElement).style.display = 'none';
+								(card as HTMLElement).style.display = 'none';
 							}
 						});
 
