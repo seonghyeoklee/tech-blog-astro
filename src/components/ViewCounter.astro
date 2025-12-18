@@ -24,14 +24,38 @@ const { slug, increment = false } = Astro.props;
       if (!slug || !countElement) return;
 
       try {
-        // 증가 모드면 POST, 아니면 GET
-        const method = increment ? 'POST' : 'GET';
+        // LocalStorage 체크 (24시간 TTL)
+        const viewedKey = `viewed:${slug}`;
+        const lastViewed = localStorage.getItem(viewedKey);
+        const now = Date.now();
+        const oneDay = 24 * 60 * 60 * 1000; // 24시간
+
+        let shouldIncrement = increment;
+
+        // 24시간 이내에 조회했다면 증가하지 않음
+        if (lastViewed && (now - parseInt(lastViewed)) < oneDay) {
+          shouldIncrement = false;
+        }
+
+        // 증가 모드이고 LocalStorage 체크 통과했으면 POST, 아니면 GET
+        const method = shouldIncrement ? 'POST' : 'GET';
         const response = await fetch(`/api/views/${slug}`, { method });
 
         if (response.ok) {
           const data = await response.json();
           const views = data.views || 0;
           countElement.textContent = views.toLocaleString();
+
+          // POST 성공 시 LocalStorage에 기록
+          if (method === 'POST' && !data.cached) {
+            localStorage.setItem(viewedKey, now.toString());
+          }
+        } else if (response.status === 429) {
+          // Rate Limit 초과 시 현재 조회수만 표시
+          const data = await response.json();
+          const views = data.views || 0;
+          countElement.textContent = views.toLocaleString();
+          console.warn('Rate limit exceeded');
         }
       } catch (error) {
         console.error('Failed to update views:', error);
