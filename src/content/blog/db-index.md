@@ -481,6 +481,363 @@ EXPLAIN SELECT * FROM users WHERE email = 'john@example.com';
 SELECT * FROM sys.schema_unused_indexes;
 ```
 
+## 다양한 인덱스 타입
+
+B+Tree 외에도 특정 상황에 최적화된 인덱스 타입들이 있습니다.
+
+### Hash Index
+
+**특징:**
+- 해시 함수를 사용해 O(1) 검색 가능
+- 동등 비교(`=`)에 최적화
+- 범위 검색, 정렬 불가능
+
+```sql
+-- MySQL (Memory 엔진에서만 지원)
+CREATE TABLE cache (
+  key VARCHAR(50),
+  value TEXT,
+  INDEX USING HASH (key)
+) ENGINE=MEMORY;
+
+-- PostgreSQL
+CREATE INDEX idx_users_email_hash ON users USING HASH (email);
+```
+
+**사용 사례:**
+```sql
+-- ✅ Hash Index 효율적
+SELECT * FROM users WHERE email = 'john@example.com';
+
+-- ❌ Hash Index 사용 불가
+SELECT * FROM users WHERE email > 'a@example.com';  -- 범위 검색
+SELECT * FROM users ORDER BY email;  -- 정렬
+```
+
+**트레이드오프:**
+- **장점**: 동등 비교 시 B+Tree보다 빠름
+- **단점**: 범위 검색 불가, 정렬 불가, 메모리 테이블에서만 효과적
+
+### Full-Text Index
+
+**특징:**
+- 텍스트 검색에 최적화
+- 단어 단위 검색, 자연어 검색 지원
+- LIKE 검색보다 훨씬 빠름
+
+```sql
+-- MySQL
+CREATE FULLTEXT INDEX idx_posts_content ON posts(title, content);
+
+-- 자연어 검색
+SELECT * FROM posts
+WHERE MATCH(title, content) AGAINST('database performance' IN NATURAL LANGUAGE MODE);
+
+-- Boolean 모드
+SELECT * FROM posts
+WHERE MATCH(title, content) AGAINST('+database -mysql' IN BOOLEAN MODE);
+```
+
+**트레이드오프:**
+- **장점**: 텍스트 검색 성능 향상, 자연어 처리
+- **단점**: 저장 공간 많이 사용, 업데이트 비용 높음
+
+### Bitmap Index
+
+**특징:**
+- 카디널리티가 낮은 컬럼에 효율적
+- 비트 연산으로 빠른 AND/OR 연산
+- 주로 데이터 웨어하우스에서 사용
+
+```sql
+-- Oracle
+CREATE BITMAP INDEX idx_orders_status ON orders(status);
+
+-- 여러 조건 결합에 효율적
+SELECT * FROM orders
+WHERE status = 'PENDING' AND priority = 'HIGH' AND region = 'ASIA';
+```
+
+**트레이드오프:**
+- **장점**: 낮은 카디널리티 컬럼에 효율적, 복합 조건 검색 빠름
+- **단점**: 쓰기 성능 저하, OLTP에 부적합
+
+### Partial Index (Filtered Index)
+
+**특징:**
+- 조건을 만족하는 레코드만 인덱싱
+- 인덱스 크기 감소, 성능 향상
+
+```sql
+-- PostgreSQL
+CREATE INDEX idx_active_users ON users(email)
+WHERE status = 'ACTIVE';
+
+-- 쿼리에서 같은 조건 사용 시 인덱스 활용
+SELECT * FROM users
+WHERE email = 'john@example.com' AND status = 'ACTIVE';
+```
+
+```sql
+-- MySQL (생성된 컬럼 + 인덱스로 유사하게 구현)
+ALTER TABLE users ADD COLUMN is_active BOOLEAN GENERATED ALWAYS AS (status = 'ACTIVE');
+CREATE INDEX idx_active_users ON users(email, is_active);
+```
+
+**트레이드오프:**
+- **장점**: 인덱스 크기 감소, 특정 조건 검색 빠름
+- **단점**: 조건에 맞지 않으면 인덱스 사용 불가
+
+### 인덱스 타입 선택 가이드
+
+| 상황 | 권장 인덱스 | 이유 |
+|------|-----------|------|
+| 범위 검색, 정렬 | **B+Tree** | 정렬된 구조, 범위 검색 효율적 |
+| 동등 비교만 | **Hash** | O(1) 검색, 메모리 테이블 |
+| 텍스트 검색 | **Full-Text** | 자연어 검색, LIKE보다 빠름 |
+| 낮은 카디널리티 | **Bitmap** | 비트 연산, 복합 조건 빠름 |
+| 특정 조건만 | **Partial** | 인덱스 크기 감소, 타겟 검색 |
+
+## 아키텍처로 풀어내는 검색 성능
+
+인덱스만으로 해결하기 어려운 상황에서는 아키텍처 레벨의 접근이 필요합니다.
+
+### 1단계: Cache Layer
+
+**문제:** 같은 데이터를 반복 조회하는 경우
+
+```java
+// Before: 매번 DB 조회
+@Service
+public class UserService {
+    public User getUser(Long id) {
+        return userRepository.findById(id).orElseThrow();
+    }
+}
+
+// After: Redis Cache
+@Service
+public class UserService {
+    private final RedisTemplate<String, User> redis;
+
+    @Cacheable(value = "users", key = "#id")
+    public User getUser(Long id) {
+        return userRepository.findById(id).orElseThrow();
+    }
+
+    @CacheEvict(value = "users", key = "#user.id")
+    public void updateUser(User user) {
+        userRepository.save(user);
+    }
+}
+```
+
+**효과:**
+- DB 부하 감소 (캐시 히트율 80% 가정 시 DB 조회 80% 감소)
+- 응답 시간 개선 (Redis: 1ms vs MySQL: 10ms)
+
+**트레이드오프:**
+- **장점**: 극도로 빠른 조회, DB 부하 감소
+- **단점**: 캐시 무효화 전략 필요, 데이터 불일치 가능성, 추가 인프라 비용
+
+### 2단계: Read Replica
+
+**문제:** 읽기 작업이 쓰기보다 압도적으로 많은 경우
+
+```yaml
+# application.yml
+spring:
+  datasource:
+    master:
+      jdbc-url: jdbc:mysql://master-db:3306/myapp
+      username: admin
+      password: secret
+
+    slave:
+      jdbc-url: jdbc:mysql://slave-db:3306/myapp
+      username: readonly
+      password: secret
+```
+
+```java
+@Service
+public class ProductService {
+    @Transactional(readOnly = true)  // Read Replica로 라우팅
+    public List<Product> searchProducts(String keyword) {
+        return productRepository.findByNameContaining(keyword);
+    }
+
+    @Transactional  // Master DB로 라우팅
+    public void createProduct(Product product) {
+        productRepository.save(product);
+    }
+}
+```
+
+**효과:**
+- 읽기/쓰기 분리로 Master DB 부하 감소
+- 여러 Replica로 읽기 부하 분산
+
+**트레이드오프:**
+- **장점**: 읽기 처리량 증가, 장애 격리
+- **단점**: 복제 지연(Replication Lag), 인프라 비용 증가, 데이터 일관성 복잡도
+
+### 3단계: Partitioning (파티셔닝)
+
+**문제:** 테이블이 너무 커서 인덱스 효율이 떨어지는 경우
+
+```sql
+-- Range Partitioning (날짜 기준)
+CREATE TABLE orders (
+    id BIGINT,
+    user_id BIGINT,
+    order_date DATE,
+    amount DECIMAL(10,2)
+)
+PARTITION BY RANGE (YEAR(order_date)) (
+    PARTITION p2022 VALUES LESS THAN (2023),
+    PARTITION p2023 VALUES LESS THAN (2024),
+    PARTITION p2024 VALUES LESS THAN (2025),
+    PARTITION p2025 VALUES LESS THAN (2026)
+);
+
+-- 특정 파티션만 검색
+SELECT * FROM orders
+WHERE order_date BETWEEN '2024-01-01' AND '2024-12-31';
+-- → p2024 파티션만 스캔
+```
+
+```sql
+-- Hash Partitioning (user_id 기준)
+CREATE TABLE user_activities (
+    id BIGINT,
+    user_id BIGINT,
+    activity_type VARCHAR(50),
+    created_at TIMESTAMP
+)
+PARTITION BY HASH(user_id)
+PARTITIONS 10;
+```
+
+**효과:**
+- 파티션 프루닝으로 스캔 범위 축소
+- 파티션별 인덱스로 인덱스 크기 감소
+
+**트레이드오프:**
+- **장점**: 대용량 테이블 관리 용이, 파티션 단위 백업/복구
+- **단점**: 파티션 키 선택 중요, 파티션 간 조인 성능 저하, 관리 복잡도 증가
+
+### 4단계: Sharding (샤딩)
+
+**문제:** 단일 DB로 처리 불가능한 초대규모 데이터
+
+```java
+// Sharding Key: user_id
+@Service
+public class UserShardingService {
+    private final List<DataSource> shards;
+
+    private DataSource getShardForUser(Long userId) {
+        int shardIndex = (int) (userId % shards.size());
+        return shards.get(shardIndex);
+    }
+
+    public User getUser(Long userId) {
+        DataSource shard = getShardForUser(userId);
+        // shard에서 사용자 조회
+        return jdbcTemplate.queryForObject(
+            "SELECT * FROM users WHERE id = ?",
+            new Object[]{userId},
+            userRowMapper
+        );
+    }
+}
+```
+
+**Sharding 전략:**
+
+| 전략 | 방식 | 장점 | 단점 |
+|------|------|------|------|
+| **Range** | 범위 기준 분할 | 파티셔닝 용이 | 핫스팟 가능 |
+| **Hash** | 해시 기준 분할 | 균등 분산 | 범위 검색 어려움 |
+| **Geography** | 지역 기준 분할 | 지연 시간 최소화 | 불균등 분산 가능 |
+
+**트레이드오프:**
+- **장점**: 무한 확장 가능, 단일 장애점 제거
+- **단점**: 샤드 간 JOIN 불가, 트랜잭션 복잡, 리샤딩 비용 높음, 애플리케이션 복잡도 증가
+
+### 5단계: Search Engine (Elasticsearch)
+
+**문제:** 복잡한 텍스트 검색, 다국어 검색, 실시간 검색어 자동완성
+
+```java
+// Elasticsearch + DB 하이브리드
+@Service
+public class ProductSearchService {
+    private final ElasticsearchTemplate elastic;
+    private final ProductRepository repository;
+
+    // 검색은 Elasticsearch
+    public List<ProductSummary> search(String keyword) {
+        SearchHits<ProductDocument> hits = elastic.search(
+            Query.multiMatchQuery(keyword, "name", "description"),
+            ProductDocument.class
+        );
+        return hits.stream()
+            .map(hit -> new ProductSummary(hit.getId(), hit.getName()))
+            .collect(Collectors.toList());
+    }
+
+    // 상세 조회는 DB
+    public Product getProductDetail(Long id) {
+        return repository.findById(id).orElseThrow();
+    }
+
+    // 데이터 변경 시 동기화
+    @Transactional
+    public void updateProduct(Product product) {
+        repository.save(product);
+        elastic.save(ProductDocument.from(product));  // ES 동기화
+    }
+}
+```
+
+**Elasticsearch 강점:**
+- 역색인(Inverted Index)으로 빠른 텍스트 검색
+- 형태소 분석, 동의어 처리
+- 실시간 집계(Aggregation)
+
+**트레이드오프:**
+- **장점**: 복잡한 텍스트 검색 성능, 다국어 지원, 실시간 분석
+- **단점**: 추가 인프라, DB-ES 동기화 필요, 트랜잭션 미지원, 운영 복잡도
+
+### 아키텍처 선택 가이드
+
+| 규모/상황 | 권장 아키텍처 | 이유 |
+|----------|-------------|------|
+| **~10만 건** | 인덱스 최적화 | 단일 DB로 충분 |
+| **10만~100만 건** | 인덱스 + Cache | 반복 조회 최적화 |
+| **100만~1000만 건** | Cache + Read Replica | 읽기 부하 분산 |
+| **1000만~1억 건** | Partitioning + Cache | 파티션 단위 관리 |
+| **1억 건 이상** | Sharding | 수평 확장 |
+| **텍스트 검색 중심** | Elasticsearch | 전문 검색 엔진 |
+
+### 진화 경로 예시
+
+```
+1단계: 인덱스 추가
+   ↓ (데이터 증가, 반복 조회 증가)
+2단계: Redis Cache 도입
+   ↓ (읽기 부하 증가)
+3단계: Read Replica 추가
+   ↓ (테이블 크기 증가)
+4단계: Partitioning 적용
+   ↓ (단일 DB 한계)
+5단계: Sharding 도입
+   ↓ (복잡한 검색 요구사항)
+6단계: Elasticsearch 추가
+```
+
 ## 정리
 
 **인덱스는 검색 성능을 극적으로 향상시키는 핵심 기술**입니다.
@@ -497,4 +854,4 @@ SELECT * FROM sys.schema_unused_indexes;
 - 읽기 성능 ⬆️ vs 쓰기 성능 ⬇️
 - 검색 속도 ⬆️ vs 저장 공간 ⬆️
 
-실무에서는 **자주 조회되는 쿼리를 분석**하고, **병목 지점에 선택적으로 인덱스를 추가**하는 것이 중요합니다.
+실무에서는 **자주 조회되는 쿼리를 분석**하고, **병목 지점에 선택적으로 인덱스를 추가**하는 것이 중요합니다. 인덱스만으로 부족하다면 아키텍처 레벨의 해결책을 고려해야 합니다.
