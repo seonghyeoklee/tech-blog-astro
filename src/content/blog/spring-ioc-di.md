@@ -321,13 +321,594 @@ The dependencies of some of the beans in the application context form a cycle
 - 공통 로직을 별도 클래스로 분리합니다
 - `@Lazy`로 지연 로딩합니다 (권장하지 않음)
 
+## Bean Lifecycle과 Scope
+
+Bean의 생명주기와 범위를 이해하면 더 효과적으로 사용할 수 있습니다.
+
+### Bean Lifecycle
+
+```java
+@Component
+public class UserService implements InitializingBean, DisposableBean {
+
+    @PostConstruct
+    public void init() {
+        System.out.println("1. @PostConstruct");
+    }
+
+    @Override
+    public void afterPropertiesSet() {
+        System.out.println("2. InitializingBean.afterPropertiesSet()");
+    }
+
+    @Bean(initMethod = "customInit")
+    public void customInit() {
+        System.out.println("3. @Bean initMethod");
+    }
+
+    @PreDestroy
+    public void cleanup() {
+        System.out.println("4. @PreDestroy");
+    }
+
+    @Override
+    public void destroy() {
+        System.out.println("5. DisposableBean.destroy()");
+    }
+
+    @Bean(destroyMethod = "customDestroy")
+    public void customDestroy() {
+        System.out.println("6. @Bean destroyMethod");
+    }
+}
+```
+
+**생명주기 순서:**
+```
+생성:
+1. 생성자 호출
+2. 의존성 주입
+3. @PostConstruct
+4. InitializingBean.afterPropertiesSet()
+5. @Bean initMethod
+
+소멸:
+1. @PreDestroy
+2. DisposableBean.destroy()
+3. @Bean destroyMethod
+```
+
+**권장 방식**: `@PostConstruct`, `@PreDestroy` 사용 (Java 표준)
+
+### Bean Scope
+
+```java
+// Singleton (기본값) - 애플리케이션 전체에서 하나
+@Scope("singleton")
+@Component
+public class SingletonBean { }
+
+// Prototype - 요청마다 새로 생성
+@Scope("prototype")
+@Component
+public class PrototypeBean { }
+
+// Request - HTTP 요청당 하나 (웹 환경)
+@Scope("request")
+@Component
+public class RequestScopedBean { }
+
+// Session - HTTP 세션당 하나 (웹 환경)
+@Scope("session")
+@Component
+public class SessionScopedBean { }
+```
+
+**Scope 비교:**
+
+| Scope | 생성 시점 | 소멸 시점 | 사용 사례 |
+|-------|----------|----------|----------|
+| **singleton** | 애플리케이션 시작 | 애플리케이션 종료 | 상태 없는 서비스 |
+| **prototype** | 요청 시마다 | 사용자가 관리 | 상태 있는 객체 |
+| **request** | HTTP 요청 시작 | HTTP 요청 종료 | 요청별 컨텍스트 |
+| **session** | HTTP 세션 생성 | HTTP 세션 만료 | 사용자별 상태 |
+
+**Singleton + Prototype 함께 사용 시 주의:**
+
+```java
+@Component
+public class SingletonBean {
+    @Autowired
+    private PrototypeBean prototypeBean;  // 한 번만 주입됨!
+
+    public void doSomething() {
+        // 항상 같은 PrototypeBean 사용 (의도와 다름)
+        prototypeBean.process();
+    }
+}
+```
+
+해결 방법: Provider 사용 (아래 참조)
+
+## 고급 주입 기법
+
+### Provider - 지연 주입
+
+```java
+@Component
+public class SingletonBean {
+    @Autowired
+    private Provider<PrototypeBean> prototypeBeanProvider;
+
+    public void doSomething() {
+        // 매번 새로운 PrototypeBean 생성
+        PrototypeBean bean = prototypeBeanProvider.get();
+        bean.process();
+    }
+}
+```
+
+```java
+// ObjectFactory 사용 (Provider의 Spring 버전)
+@Autowired
+private ObjectFactory<PrototypeBean> prototypeBeanFactory;
+
+public void doSomething() {
+    PrototypeBean bean = prototypeBeanFactory.getObject();
+}
+```
+
+**트레이드오프:**
+- **장점**: Scope 문제 해결, 지연 로딩
+- **단점**: 매번 조회 오버헤드, 코드 복잡도 증가
+
+### @Lookup - 메서드 주입
+
+```java
+@Component
+public abstract class SingletonBean {
+    public void doSomething() {
+        // 매번 새로운 PrototypeBean 반환
+        PrototypeBean bean = createPrototypeBean();
+        bean.process();
+    }
+
+    @Lookup
+    protected abstract PrototypeBean createPrototypeBean();
+}
+```
+
+Spring이 런타임에 CGLIB 프록시로 메서드 구현을 제공합니다.
+
+**트레이드오프:**
+- **장점**: 깔끔한 코드, Spring이 자동 구현
+- **단점**: 추상 클래스 필요, CGLIB 프록시 오버헤드
+
+### @Conditional - 조건부 Bean 등록
+
+```java
+@Configuration
+public class DatabaseConfig {
+
+    @Bean
+    @ConditionalOnProperty(name = "database.type", havingValue = "mysql")
+    public DataSource mysqlDataSource() {
+        return new HikariDataSource();
+    }
+
+    @Bean
+    @ConditionalOnProperty(name = "database.type", havingValue = "h2")
+    public DataSource h2DataSource() {
+        return new EmbeddedDatabaseBuilder().build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(DataSource.class)
+    public DataSource defaultDataSource() {
+        return new SimpleDataSource();
+    }
+}
+```
+
+**주요 @Conditional 어노테이션:**
+
+| 어노테이션 | 조건 |
+|----------|------|
+| `@ConditionalOnProperty` | 프로퍼티 값 기준 |
+| `@ConditionalOnClass` | 클래스 존재 여부 |
+| `@ConditionalOnMissingBean` | Bean 미존재 시 |
+| `@ConditionalOnBean` | Bean 존재 시 |
+| `@ConditionalOnExpression` | SpEL 표현식 |
+
+### @Profile - 환경별 Bean
+
+```java
+@Configuration
+@Profile("dev")
+public class DevConfig {
+    @Bean
+    public DataSource dataSource() {
+        return new H2DataSource();  // 개발 환경
+    }
+}
+
+@Configuration
+@Profile("prod")
+public class ProdConfig {
+    @Bean
+    public DataSource dataSource() {
+        return new MySQLDataSource();  // 운영 환경
+    }
+}
+```
+
+```yaml
+# application.yml
+spring:
+  profiles:
+    active: dev  # dev 또는 prod
+```
+
+**트레이드오프:**
+- **장점**: 환경별 설정 분리, 명확한 구분
+- **단점**: 설정 파일 증가, 프로파일 관리 필요
+
+## 아키텍처로 풀어내는 DI
+
+애플리케이션이 커지면 Bean 관리가 복잡해집니다. 아키텍처 레벨의 해결책이 필요합니다.
+
+### 1단계: 계층별 모듈 분리
+
+**문제:** 모든 Bean이 하나의 패키지에 있으면 관리 어려움
+
+```
+com.example.app
+├── controller/
+│   ├── UserController
+│   └── OrderController
+├── service/
+│   ├── UserService
+│   └── OrderService
+└── repository/
+    ├── UserRepository
+    └── OrderRepository
+```
+
+**개선: 도메인별 모듈 분리**
+
+```
+com.example.app
+├── user/
+│   ├── UserController
+│   ├── UserService
+│   └── UserRepository
+├── order/
+│   ├── OrderController
+│   ├── OrderService
+│   └── OrderRepository
+└── common/
+    └── CommonConfig
+```
+
+**트레이드오프:**
+- **장점**: 도메인 응집도 향상, 독립적 개발
+- **단점**: 모듈 간 의존성 관리 복잡
+
+### 2단계: Multi-Module 프로젝트
+
+**문제:** 단일 모듈에서 모든 도메인 관리 시 빌드 시간 증가, 의존성 경계 모호
+
+```
+project-root/
+├── user-module/
+│   ├── src/
+│   └── build.gradle
+├── order-module/
+│   ├── src/
+│   └── build.gradle
+├── common-module/
+│   ├── src/
+│   └── build.gradle
+└── app-module/
+    ├── src/ (메인 애플리케이션)
+    └── build.gradle
+```
+
+```groovy
+// app-module/build.gradle
+dependencies {
+    implementation project(':user-module')
+    implementation project(':order-module')
+    implementation project(':common-module')
+}
+```
+
+```java
+// app-module
+@SpringBootApplication
+@ComponentScan(basePackages = {
+    "com.example.user",
+    "com.example.order",
+    "com.example.common"
+})
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**: 명확한 의존성 경계, 독립적 빌드, 재사용 가능
+- **단점**: 초기 설정 복잡, 모듈 간 순환 의존 주의
+
+### 3단계: Spring Boot Auto-configuration
+
+**문제:** 공통 설정을 매 프로젝트마다 반복
+
+**해결: Custom Starter 생성**
+
+```java
+// my-library-spring-boot-starter
+@Configuration
+@ConditionalOnClass(MyLibrary.class)
+@EnableConfigurationProperties(MyLibraryProperties.class)
+public class MyLibraryAutoConfiguration {
+
+    @Bean
+    @ConditionalOnMissingBean
+    public MyLibrary myLibrary(MyLibraryProperties properties) {
+        return new MyLibrary(properties.getApiKey());
+    }
+}
+```
+
+```java
+@ConfigurationProperties(prefix = "mylibrary")
+public class MyLibraryProperties {
+    private String apiKey;
+    // getters/setters
+}
+```
+
+```
+# META-INF/spring.factories
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.example.MyLibraryAutoConfiguration
+```
+
+**사용:**
+
+```groovy
+// 다른 프로젝트에서
+dependencies {
+    implementation 'com.example:my-library-spring-boot-starter:1.0.0'
+}
+```
+
+```yaml
+# application.yml
+mylibrary:
+  api-key: your-api-key
+```
+
+자동으로 Bean이 등록되고 주입됩니다.
+
+**트레이드오프:**
+- **장점**: 설정 자동화, 재사용성, Convention over Configuration
+- **단점**: 디버깅 어려움, 자동 설정 이해 필요
+
+### 4단계: Configuration 분리 전략
+
+**문제:** 모든 설정이 하나의 클래스에 있으면 관리 어려움
+
+**전략 1: 기능별 Configuration**
+
+```java
+@Configuration
+public class DatabaseConfig {
+    @Bean
+    public DataSource dataSource() { }
+
+    @Bean
+    public JpaTransactionManager transactionManager() { }
+}
+
+@Configuration
+public class SecurityConfig {
+    @Bean
+    public SecurityFilterChain filterChain() { }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() { }
+}
+
+@Configuration
+public class CacheConfig {
+    @Bean
+    public CacheManager cacheManager() { }
+}
+```
+
+**전략 2: @Import로 조합**
+
+```java
+@Configuration
+@Import({
+    DatabaseConfig.class,
+    SecurityConfig.class,
+    CacheConfig.class
+})
+public class AppConfig {
+}
+```
+
+**전략 3: @Enable* 커스텀 어노테이션**
+
+```java
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Import(MyFeatureConfiguration.class)
+public @interface EnableMyFeature {
+}
+
+@Configuration
+@EnableMyFeature  // 한 줄로 기능 활성화
+public class AppConfig {
+}
+```
+
+**트레이드오프:**
+- **장점**: 명확한 책임 분리, 재사용 가능
+- **단점**: 파일 수 증가, Import 관리 필요
+
+### 5단계: 테스트 전략
+
+**문제:** 실제 Bean을 사용하면 테스트 느림, DB 의존성
+
+**해결 1: @MockBean**
+
+```java
+@SpringBootTest
+class OrderServiceTest {
+
+    @MockBean
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private OrderService orderService;
+
+    @Test
+    void createOrder() {
+        // Given
+        when(orderRepository.save(any())).thenReturn(new Order());
+
+        // When
+        orderService.createOrder(new OrderRequest());
+
+        // Then
+        verify(orderRepository, times(1)).save(any());
+    }
+}
+```
+
+**해결 2: @WebMvcTest (Controller 레이어만)**
+
+```java
+@WebMvcTest(UserController.class)
+class UserControllerTest {
+
+    @MockBean
+    private UserService userService;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Test
+    void getUser() throws Exception {
+        when(userService.getUser(1L)).thenReturn(new User());
+
+        mockMvc.perform(get("/users/1"))
+            .andExpect(status().isOk());
+    }
+}
+```
+
+**해결 3: @DataJpaTest (Repository 레이어만)**
+
+```java
+@DataJpaTest
+class UserRepositoryTest {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Test
+    void findByEmail() {
+        User user = userRepository.findByEmail("test@example.com");
+        assertThat(user).isNotNull();
+    }
+}
+```
+
+**해결 4: TestConfiguration**
+
+```java
+@TestConfiguration
+public class TestConfig {
+    @Bean
+    @Primary  // 테스트용 Bean이 우선
+    public UserService testUserService() {
+        return new FakeUserService();
+    }
+}
+
+@SpringBootTest
+@Import(TestConfig.class)
+class IntegrationTest {
+    @Autowired
+    private UserService userService;  // FakeUserService 주입됨
+}
+```
+
+**테스트 전략 비교:**
+
+| 전략 | 속도 | 범위 | 사용 사례 |
+|------|------|------|----------|
+| **단위 테스트** (Mockito) | 빠름 | 단일 클래스 | 비즈니스 로직 |
+| **@WebMvcTest** | 중간 | Controller | API 테스트 |
+| **@DataJpaTest** | 중간 | Repository | DB 쿼리 |
+| **@SpringBootTest** | 느림 | 전체 | 통합 테스트 |
+
+**트레이드오프:**
+- **장점**: 빠른 테스트, 격리된 환경, 외부 의존 제거
+- **단점**: Mock 설정 복잡, 통합 테스트 필요성 여전히 존재
+
+### 아키텍처 선택 가이드
+
+| 프로젝트 규모 | 권장 아키텍처 | 이유 |
+|-------------|-------------|------|
+| **소규모 (~10 클래스)** | 단일 모듈, 계층 분리 | 간단한 구조 |
+| **중규모 (~50 클래스)** | 도메인별 패키지 분리 | 응집도 향상 |
+| **대규모 (~200 클래스)** | Multi-Module | 명확한 경계 |
+| **공통 라이브러리** | Custom Starter | 재사용성 |
+| **마이크로서비스** | 독립 모듈 + Starter | 서비스 독립성 |
+
+### 진화 경로
+
+```
+1단계: 계층별 패키지 (controller, service, repository)
+   ↓ (도메인 증가)
+2단계: 도메인별 패키지 (user, order, product)
+   ↓ (모듈 증가)
+3단계: Multi-Module 프로젝트
+   ↓ (공통 설정 반복)
+4단계: Custom Starter 생성
+   ↓ (마이크로서비스)
+5단계: 서비스별 독립 모듈
+```
+
 ## 정리
 
-이 글에서 다룬 내용을 정리하면 다음과 같습니다.
-
+**기본 개념:**
 - 의존성 주입은 객체를 외부에서 받는 방식입니다
 - IoC는 객체 생성과 연결의 제어권이 외부로 넘어가는 것입니다
 - Spring의 IoC Container가 Bean 생성과 주입을 담당합니다
 - 생성자 주입을 기본으로 사용하세요
 
-다음 글에서는 Spring AOP에 대해 다루겠습니다.
+**고급 기법:**
+- Bean Lifecycle: @PostConstruct, @PreDestroy 권장
+- Bean Scope: Singleton (기본), Prototype, Request, Session
+- Provider/ObjectFactory: Scope 문제 해결, 지연 로딩
+- @Conditional, @Profile: 조건부/환경별 Bean 등록
+
+**아키텍처 패턴:**
+- 계층별 → 도메인별 → Multi-Module로 진화
+- Custom Starter로 공통 설정 자동화
+- Configuration 분리로 책임 명확화
+- 테스트 전략: 단위 → 슬라이스 → 통합 테스트
+
+**선택 기준:**
+- 프로젝트 규모와 복잡도에 따라 아키텍처 선택
+- 재사용성과 유지보수를 고려한 점진적 진화
+- 테스트 속도와 범위 사이의 트레이드오프 이해
