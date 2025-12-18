@@ -25,3 +25,5 @@ pnpm-debug.log*
 
 # serena mcp server
 .serena/
+.env.local
+.vercel/

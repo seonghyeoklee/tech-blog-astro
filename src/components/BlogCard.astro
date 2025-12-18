@@ -1,6 +1,7 @@
 ---
 import { Image } from 'astro:assets';
 import FormattedDate from './FormattedDate.astro';
+import ViewCounter from './ViewCounter.astro';
 
 // Import placeholder images
 import placeholder1 from '../assets/blog-placeholder-1.jpg';
@@ -81,6 +82,8 @@ const imageSrc = getImageSource();
 		<h2 class="card-title">{title}</h2>
 		<div class="card-date">
 			<FormattedDate date={pubDate} />
+			<span class="date-separator">•</span>
+			<ViewCounter slug={slug} increment={false} />
 		</div>
 		<p class="card-description">{description}</p>
 		{tags && tags.length > 0 && (
@@ -202,9 +205,17 @@ const imageSrc = getImageSource();
 	}
 
 	.card-date {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
 		font-size: 0.85em;
 		color: rgb(var(--gray));
 		margin-bottom: 0.75em;
+	}
+
+	.date-separator {
+		color: rgb(var(--gray));
+		opacity: 0.5;
 	}
 
 	.card-description {
