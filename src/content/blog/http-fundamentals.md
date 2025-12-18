@@ -596,30 +596,551 @@ public class ExternalApiService {
 }
 ```
 
+## 실시간 통신 기술
+
+HTTP는 요청-응답 모델이지만, 실시간 통신이 필요한 경우 다양한 기술이 있습니다.
+
+### Long Polling
+
+**동작 방식:**
+- 클라이언트가 요청을 보내고 서버가 새 데이터가 있을 때까지 응답 대기
+- 응답 후 즉시 재요청
+
+```javascript
+// 클라이언트
+async function longPoll() {
+    while (true) {
+        const response = await fetch('/api/messages?timeout=30000');
+        const data = await response.json();
+        updateUI(data);
+        // 즉시 재요청
+    }
+}
+```
+
+```java
+// 서버
+@GetMapping("/messages")
+public DeferredResult<List<Message>> getMessages(
+    @RequestParam(defaultValue = "30000") long timeout) {
+
+    DeferredResult<List<Message>> result = new DeferredResult<>(timeout);
+
+    // 새 메시지가 도착하면 응답
+    messageService.onNewMessage(messages -> {
+        result.setResult(messages);
+    });
+
+    // 타임아웃 시 빈 응답
+    result.onTimeout(() -> result.setResult(Collections.emptyList()));
+
+    return result;
+}
+```
+
+**트레이드오프:**
+- **장점**: HTTP 기반, 방화벽 문제 없음, 구현 단순
+- **단점**: 불필요한 요청 많음, 서버 리소스 낭비, 실시간성 부족
+
+### Server-Sent Events (SSE)
+
+**동작 방식:**
+- 서버에서 클라이언트로 단방향 스트리밍
+- HTTP 연결 유지하며 이벤트 푸시
+
+```javascript
+// 클라이언트
+const eventSource = new EventSource('/api/notifications');
+
+eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    console.log('New notification:', data);
+};
+
+eventSource.onerror = () => {
+    console.error('Connection lost, reconnecting...');
+};
+```
+
+```java
+// 서버 (Spring)
+@GetMapping(value = "/notifications", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+public Flux<ServerSentEvent<Notification>> streamNotifications() {
+    return notificationService.getStream()
+        .map(notification -> ServerSentEvent.<Notification>builder()
+            .id(String.valueOf(notification.getId()))
+            .event("notification")
+            .data(notification)
+            .build()
+        );
+}
+```
+
+**트레이드오프:**
+- **장점**: 단방향에 최적화, 자동 재연결, HTTP 기반
+- **단점**: 단방향만 가능, IE 미지원, 연결 수 제한
+
+### WebSocket
+
+**동작 방식:**
+- HTTP에서 시작하여 양방향 통신 프로토콜로 업그레이드
+- 지속적인 TCP 연결 유지
+
+```javascript
+// 클라이언트
+const ws = new WebSocket('ws://localhost:8080/chat');
+
+ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'join', room: 'general' }));
+};
+
+ws.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    displayMessage(message);
+};
+
+ws.send(JSON.stringify({ type: 'message', text: 'Hello!' }));
+```
+
+```java
+// 서버 (Spring WebSocket)
+@Configuration
+@EnableWebSocket
+public class WebSocketConfig implements WebSocketConfigurer {
+    @Override
+    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        registry.addHandler(chatHandler(), "/chat")
+            .setAllowedOrigins("*");
+    }
+
+    @Bean
+    public WebSocketHandler chatHandler() {
+        return new ChatHandler();
+    }
+}
+
+public class ChatHandler extends TextWebSocketHandler {
+    @Override
+    public void handleTextMessage(WebSocketSession session, TextMessage message) {
+        // 양방향 메시지 처리
+        String payload = message.getPayload();
+        session.sendMessage(new TextMessage("Echo: " + payload));
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**: 양방향 실시간 통신, 낮은 레이턴시, 오버헤드 최소
+- **단점**: 프록시/방화벽 문제 가능, 상태 관리 복잡, 연결 수 제한
+
+### gRPC
+
+**동작 방식:**
+- HTTP/2 기반 RPC 프레임워크
+- Protocol Buffers로 직렬화
+- 양방향 스트리밍 지원
+
+```protobuf
+// user.proto
+syntax = "proto3";
+
+service UserService {
+  rpc GetUser (UserRequest) returns (UserResponse);
+  rpc StreamUsers (stream UserRequest) returns (stream UserResponse);
+}
+
+message UserRequest {
+  int64 id = 1;
+}
+
+message UserResponse {
+  int64 id = 1;
+  string name = 2;
+  string email = 3;
+}
+```
+
+```java
+// 서버
+@GrpcService
+public class UserServiceImpl extends UserServiceGrpc.UserServiceImplBase {
+    @Override
+    public void getUser(UserRequest request, StreamObserver<UserResponse> responseObserver) {
+        User user = userRepository.findById(request.getId());
+
+        UserResponse response = UserResponse.newBuilder()
+            .setId(user.getId())
+            .setName(user.getName())
+            .setEmail(user.getEmail())
+            .build();
+
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**:
+  - HTTP/2 기반 고성능
+  - 바이너리 프로토콜로 작은 페이로드
+  - 양방향 스트리밍
+  - 타입 안정성 (코드 생성)
+- **단점**:
+  - 브라우저 직접 호출 어려움
+  - 디버깅 어려움 (바이너리)
+  - REST보다 복잡한 설정
+
+### 실시간 통신 기술 비교
+
+| 기술 | 방향 | 프로토콜 | 실시간성 | 사용 사례 |
+|------|------|----------|----------|----------|
+| **Long Polling** | 단방향 | HTTP | 낮음 | 간단한 알림 |
+| **SSE** | 서버→클라이언트 | HTTP | 중간 | 실시간 피드, 진행률 |
+| **WebSocket** | 양방향 | WS | 높음 | 채팅, 게임, 협업 |
+| **gRPC** | 양방향 | HTTP/2 | 높음 | 마이크로서비스 통신 |
+
+## 아키텍처로 풀어내는 HTTP 확장
+
+단일 서버 HTTP만으로는 대규모 트래픽을 처리하기 어렵습니다. 아키텍처 레벨의 해결책이 필요합니다.
+
+### 1단계: API Gateway
+
+**역할:**
+- 단일 진입점으로 라우팅
+- 인증/인가 중앙화
+- Rate Limiting
+- 요청/응답 변환
+
+```yaml
+# Kong API Gateway 예시
+services:
+  - name: user-service
+    url: http://user-service:8080
+    routes:
+      - paths: ["/api/users"]
+    plugins:
+      - name: rate-limiting
+        config:
+          minute: 100
+      - name: jwt
+        config:
+          secret: "secret-key"
+```
+
+```java
+// Spring Cloud Gateway
+@Configuration
+public class GatewayConfig {
+    @Bean
+    public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
+        return builder.routes()
+            .route("user-service", r -> r
+                .path("/api/users/**")
+                .filters(f -> f
+                    .stripPrefix(1)
+                    .addRequestHeader("X-Gateway", "Spring")
+                    .circuitBreaker(c -> c.setName("userServiceCB"))
+                )
+                .uri("lb://USER-SERVICE")
+            )
+            .route("order-service", r -> r
+                .path("/api/orders/**")
+                .filters(f -> f
+                    .rateLimit(c -> c.setReplenishRate(10))
+                )
+                .uri("lb://ORDER-SERVICE")
+            )
+            .build();
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**: 중앙 집중식 관리, 서비스 독립성, 횡단 관심사 처리
+- **단점**: 단일 장애점, 레이턴시 증가, 복잡도 증가
+
+### 2단계: Load Balancer
+
+**역할:**
+- 트래픽 분산
+- Health Check
+- 장애 격리
+
+```nginx
+# Nginx Load Balancer
+upstream backend {
+    least_conn;  # 연결 수 기준 분산
+
+    server backend1.example.com:8080 weight=3;
+    server backend2.example.com:8080 weight=2;
+    server backend3.example.com:8080 backup;  # 백업 서버
+
+    keepalive 32;  # 연결 풀
+}
+
+server {
+    listen 80;
+
+    location /api {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+
+        # Health Check
+        proxy_next_upstream error timeout http_500 http_502 http_503;
+        proxy_connect_timeout 2s;
+    }
+}
+```
+
+**로드 밸런싱 알고리즘:**
+
+| 알고리즘 | 방식 | 장점 | 단점 |
+|---------|------|------|------|
+| **Round Robin** | 순차 분배 | 단순, 균등 분산 | 서버 성능 차이 무시 |
+| **Least Connection** | 연결 수 기준 | 동적 부하 반영 | 오버헤드 있음 |
+| **IP Hash** | 클라이언트 IP 기준 | 세션 유지 | 특정 서버 편중 가능 |
+| **Weighted** | 가중치 기준 | 서버 성능 반영 | 가중치 조정 필요 |
+
+**트레이드오프:**
+- **장점**: 고가용성, 확장성, 무중단 배포
+- **단점**: 세션 관리 복잡, L7 로드 밸런서는 비용 높음
+
+### 3단계: Reverse Proxy
+
+**역할:**
+- 정적 파일 서빙
+- SSL Termination
+- 캐싱
+- 압축
+
+```nginx
+# Nginx Reverse Proxy
+server {
+    listen 443 ssl http2;
+    server_name api.example.com;
+
+    # SSL 설정
+    ssl_certificate /etc/ssl/cert.pem;
+    ssl_certificate_key /etc/ssl/key.pem;
+
+    # 정적 파일 캐싱
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # 압축
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript;
+
+    # 프록시
+    location / {
+        proxy_pass http://backend;
+        proxy_cache my_cache;
+        proxy_cache_valid 200 10m;
+        proxy_cache_use_stale error timeout http_500;
+
+        add_header X-Cache-Status $upstream_cache_status;
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**: 백엔드 부하 감소, SSL 오프로딩, 보안 강화
+- **단점**: 설정 복잡, 캐시 무효화 관리
+
+### 4단계: CDN (Content Delivery Network)
+
+**역할:**
+- 전 세계 엣지 서버에 콘텐츠 캐싱
+- 지리적으로 가까운 서버에서 응답
+- DDoS 방어
+
+```javascript
+// CloudFlare CDN 예시
+// 오리진 서버에서 캐시 제어
+@GetMapping("/static/image.jpg")
+public ResponseEntity<byte[]> getImage() {
+    return ResponseEntity.ok()
+        .cacheControl(CacheControl.maxAge(1, TimeUnit.DAYS).cachePublic())
+        .header("CDN-Cache-Control", "max-age=31536000")
+        .body(imageBytes);
+}
+```
+
+**CDN 전략:**
+- **Push**: 직접 CDN에 업로드
+- **Pull**: 최초 요청 시 오리진에서 가져와 캐싱
+
+**트레이드오프:**
+- **장점**: 전 세계 빠른 응답, 오리진 부하 감소, DDoS 방어
+- **단점**: 비용, 캐시 무효화 지연, 디버깅 어려움
+
+### 5단계: Circuit Breaker
+
+**역할:**
+- 장애 전파 방지
+- 빠른 실패 (Fail Fast)
+- 자동 복구
+
+```java
+// Resilience4j Circuit Breaker
+@Service
+public class ExternalApiService {
+    private final CircuitBreaker circuitBreaker;
+    private final RestTemplate restTemplate;
+
+    @CircuitBreaker(name = "externalApi", fallbackMethod = "fallback")
+    public User getUser(Long id) {
+        return restTemplate.getForObject(
+            "https://api.example.com/users/" + id,
+            User.class
+        );
+    }
+
+    // Fallback 메서드
+    public User fallback(Long id, Exception e) {
+        log.warn("Circuit breaker activated for user {}", id, e);
+        return User.getDefaultUser(id);
+    }
+}
+```
+
+```yaml
+# Circuit Breaker 설정
+resilience4j.circuitbreaker:
+  configs:
+    default:
+      registerHealthIndicator: true
+      slidingWindowSize: 10               # 최근 10개 요청 평가
+      minimumNumberOfCalls: 5             # 최소 5개 호출 후 평가
+      permittedNumberOfCallsInHalfOpenState: 3
+      automaticTransitionFromOpenToHalfOpenEnabled: true
+      waitDurationInOpenState: 5s         # 5초 후 Half-Open
+      failureRateThreshold: 50            # 실패율 50% 이상 시 Open
+      slowCallRateThreshold: 100          # 느린 호출 비율
+      slowCallDurationThreshold: 2s       # 2초 이상은 느린 호출
+```
+
+**상태 전환:**
+```
+CLOSED (정상)
+   ↓ (실패율 50% 이상)
+OPEN (차단)
+   ↓ (5초 경과)
+HALF_OPEN (테스트)
+   ↓ (성공 시)        ↓ (실패 시)
+CLOSED              OPEN
+```
+
+**트레이드오프:**
+- **장점**: 장애 격리, 빠른 복구, 시스템 안정성
+- **단점**: Fallback 로직 필요, 복잡도 증가, 모니터링 필수
+
+### 6단계: BFF (Backend for Frontend)
+
+**역할:**
+- 프론트엔드별 맞춤 API
+- 데이터 집계 (Aggregation)
+- 프로토콜 변환
+
+```java
+// Mobile BFF
+@RestController
+@RequestMapping("/mobile/api")
+public class MobileBffController {
+    @GetMapping("/home")
+    public MobileHomeResponse getHome(@AuthenticationPrincipal User user) {
+        // 여러 서비스 호출 병렬 처리
+        CompletableFuture<List<Product>> products =
+            CompletableFuture.supplyAsync(() -> productService.getRecommended(user));
+        CompletableFuture<List<Order>> orders =
+            CompletableFuture.supplyAsync(() -> orderService.getRecent(user));
+        CompletableFuture<UserProfile> profile =
+            CompletableFuture.supplyAsync(() -> userService.getProfile(user));
+
+        // 모바일에 최적화된 응답
+        return new MobileHomeResponse(
+            products.join().stream().limit(5).toList(),  // 모바일은 5개만
+            orders.join().stream().limit(3).toList(),
+            profile.join().getSummary()  // 요약만
+        );
+    }
+}
+
+// Web BFF
+@RestController
+@RequestMapping("/web/api")
+public class WebBffController {
+    @GetMapping("/home")
+    public WebHomeResponse getHome(@AuthenticationPrincipal User user) {
+        // 웹은 더 많은 데이터와 상세 정보
+        return new WebHomeResponse(
+            productService.getRecommended(user),
+            orderService.getRecent(user),
+            userService.getProfile(user)  // 전체 프로필
+        );
+    }
+}
+```
+
+**트레이드오프:**
+- **장점**: 클라이언트 최적화, 네트워크 요청 감소, 버전 관리 용이
+- **단점**: 코드 중복, 유지보수 비용, 서비스 수 증가
+
+### 아키텍처 선택 가이드
+
+| 규모/요구사항 | 권장 아키텍처 | 이유 |
+|-------------|-------------|------|
+| **소규모 (~1만 req/s)** | 단일 서버 + Nginx | 간단한 구성 |
+| **중규모 (~10만 req/s)** | Load Balancer + 다중 서버 | 수평 확장 |
+| **대규모 (~100만 req/s)** | API Gateway + LB + CDN | 글로벌 분산 |
+| **마이크로서비스** | API Gateway + Circuit Breaker | 장애 격리 |
+| **멀티 플랫폼** | BFF 패턴 | 클라이언트 최적화 |
+| **실시간 필요** | WebSocket + Load Balancer | 양방향 통신 |
+
+### 진화 경로
+
+```
+1단계: 단일 서버
+   ↓ (트래픽 증가)
+2단계: Load Balancer 추가
+   ↓ (정적 파일 부하)
+3단계: CDN 도입
+   ↓ (마이크로서비스 전환)
+4단계: API Gateway + Circuit Breaker
+   ↓ (멀티 플랫폼)
+5단계: BFF 패턴
+   ↓ (실시간 요구사항)
+6단계: WebSocket/gRPC 추가
+```
+
 ## 정리
 
-**HTTP는 웹의 근간이 되는 통신 프로토콜**입니다.
+**HTTP 기본:**
+- 요청-응답 구조, Stateless
+- HTTP 메서드: GET(조회), POST(생성), PUT(수정), DELETE(삭제)
+- 상태 코드: 2xx(성공), 4xx(클라이언트 오류), 5xx(서버 오류)
+- HTTP/1.1 → HTTP/2 → HTTP/3 진화
 
-**핵심 개념:**
-1. **요청-응답 구조**: 클라이언트가 요청, 서버가 응답
-2. **Stateless**: 각 요청은 독립적
-3. **HTTP 메서드**: GET(조회), POST(생성), PUT(수정), DELETE(삭제)
-4. **상태 코드**: 2xx(성공), 4xx(클라이언트 오류), 5xx(서버 오류)
-5. **헤더**: 요청/응답 메타데이터
+**실시간 통신:**
+- Long Polling: 간단하지만 비효율적
+- SSE: 서버→클라이언트 단방향 스트리밍
+- WebSocket: 양방향 실시간 통신
+- gRPC: 고성능 마이크로서비스 통신
 
-**HTTP 버전:**
-- **HTTP/1.1**: Keep-Alive로 연결 재사용
-- **HTTP/2**: 멀티플렉싱, 헤더 압축, 서버 푸시
-- **HTTP/3**: QUIC 기반, UDP 사용, 패킷 손실에 강함
+**아키텍처 패턴:**
+- API Gateway: 중앙 진입점, 인증, Rate Limiting
+- Load Balancer: 트래픽 분산, 고가용성
+- CDN: 전 세계 빠른 응답, 오리진 부하 감소
+- Circuit Breaker: 장애 격리, 빠른 실패
+- BFF: 클라이언트별 최적화
 
-**보안:**
-- **HTTPS**: TLS/SSL로 데이터 암호화
-- 민감한 데이터는 반드시 HTTPS 사용
-
-**RESTful API 원칙:**
-1. 리소스는 명사로 표현 (`/users`, `/products`)
-2. HTTP 메서드로 행동 표현
-3. 적절한 상태 코드 반환
-4. 멱등성 고려
-
-백엔드 개발자라면 HTTP를 정확히 이해하고, RESTful API를 올바르게 설계하며, 적절한 상태 코드와 헤더를 사용하는 것이 중요합니다.
+**선택 기준:**
+- 요청량과 확장성 요구사항에 따라 아키텍처 선택
+- 실시간성 필요 여부에 따라 통신 기술 선택
+- 비용, 복잡도, 유지보수를 고려한 점진적 진화
