@@ -407,29 +407,425 @@ dmesg | grep -i "out of memory"
 [12345.678] Out of memory: Kill process 1234 (java) score 950 or sacrifice child
 ```
 
-## 정리
+## 고급 메모리 관리 기법
 
-**가상 메모리와 페이징은 제한된 물리 메모리를 효율적으로 활용하는 핵심 기술**입니다.
+기본 페이징 외에도 다양한 메모리 관리 기법이 있습니다.
 
-**핵심 개념:**
-1. **가상 메모리**: 물리 메모리보다 큰 주소 공간 제공
-2. **페이징**: 메모리를 고정 크기(4KB) 페이지로 나누어 관리
-3. **페이지 테이블**: 가상 주소 → 물리 주소 변환
-4. **페이지 폴트**: 디스크에서 메모리로 페이지 로드 (느림!)
-5. **TLB**: 주소 변환 속도를 높이는 캐시
+### Multi-Level Page Table
 
-**페이지 교체 알고리즘:**
-- **FIFO**: 구현 간단하지만 효율 낮음
-- **LRU**: 효율 높지만 구현 복잡
-- **Clock**: LRU 근사, 효율과 구현 복잡도 균형
+**문제:** 단일 페이지 테이블은 메모리 낭비
 
-**실무 포인트:**
-1. 페이지 폴트가 과도하면 성능 저하 (스래싱)
-2. 메모리 모니터링: `free`, `vmstat`, `top`
-3. Swap 사용은 메모리 부족 신호
-4. JVM 힙 크기 적절히 설정
-5. 컨테이너 메모리 제한 고려
+```
+32비트 시스템:
+- 가상 주소 공간: 4GB
+- 페이지 크기: 4KB
+- 페이지 개수: 1,048,576개
+- 페이지 테이블 엔트리 크기: 4바이트
+- 페이지 테이블 크기: 4MB (프로세스당!)
+```
+
+**해결: 2단계 페이지 테이블**
+
+```
+가상 주소 (32비트):
++--------+--------+--------+
+| L1(10) | L2(10) | Off(12)|
++--------+--------+--------+
+
+1단계: L1 인덱스로 2단계 페이지 테이블 찾기
+2단계: L2 인덱스로 프레임 찾기
+3단계: Offset으로 실제 주소 계산
+```
 
 **트레이드오프:**
-- 페이지 크기 ↑ → 내부 단편화 ↑, 페이지 테이블 크기 ↓
-- 페이지 크기 ↓ → 페이지 테이블 크기 ↑, 페이지 폴트 ↑
+- **장점**: 사용하는 부분만 할당, 메모리 절약
+- **단점**: 주소 변환 단계 증가, 성능 저하 (TLB로 완화)
+
+### Huge Pages (대용량 페이지)
+
+**문제:** 4KB 페이지는 대용량 데이터에 비효율
+
+```
+데이터베이스 10GB 버퍼:
+- 4KB 페이지: 2,621,440개 페이지
+- TLB 미스 증가
+- 페이지 테이블 오버헤드 증가
+```
+
+**해결: Huge Pages (2MB 또는 1GB)**
+
+```bash
+# Linux Huge Pages 설정
+echo 1000 > /proc/sys/vm/nr_hugepages  # 2GB (2MB × 1000)
+
+# 확인
+cat /proc/meminfo | grep Huge
+HugePages_Total:    1000
+HugePages_Free:      800
+Hugepagesize:       2048 kB
+```
+
+```java
+// Java에서 Huge Pages 사용
+java -XX:+UseLargePages -XX:LargePageSizeInBytes=2m MyApp
+```
+
+**트레이드오프:**
+- **장점**: TLB 효율 증가, 페이지 테이블 크기 감소
+- **단점**: 내부 단편화 증가, 유연성 감소
+
+### Copy-on-Write (COW)
+
+**개념:** 쓰기 시점까지 메모리 복사 지연
+
+```
+프로세스 fork 시:
+1. 기존: 부모 메모리 전체 복사 (느림)
+2. COW: 페이지 테이블만 복사, Read-Only로 설정
+3. 쓰기 시도 시: Page Fault → 해당 페이지만 복사
+```
+
+```c
+// Linux fork
+pid_t pid = fork();
+
+if (pid == 0) {
+    // 자식 프로세스
+    // 부모와 메모리 공유 (COW)
+    data[0] = 100;  // 이 시점에 복사 발생
+} else {
+    // 부모 프로세스
+}
+```
+
+**트레이드오프:**
+- **장점**: fork 빠름, 메모리 절약
+- **단점**: 첫 쓰기 시 Page Fault 오버헤드
+
+### Memory-Mapped Files (mmap)
+
+**개념:** 파일을 메모리에 매핑
+
+```c
+// 파일을 메모리에 매핑
+int fd = open("data.bin", O_RDWR);
+char* mapped = mmap(NULL, file_size, PROT_READ | PROT_WRITE,
+                    MAP_SHARED, fd, 0);
+
+// 메모리 접근 = 파일 접근
+mapped[0] = 'A';  // 파일에 자동 기록 (Lazy Write)
+
+munmap(mapped, file_size);
+```
+
+```java
+// Java NIO MappedByteBuffer
+RandomAccessFile file = new RandomAccessFile("data.bin", "rw");
+MappedByteBuffer buffer = file.getChannel()
+    .map(FileChannel.MapMode.READ_WRITE, 0, file.length());
+
+buffer.put(0, (byte) 'A');  // 파일에 자동 기록
+```
+
+**트레이드오프:**
+- **장점**: 빠른 파일 I/O, 프로세스 간 메모리 공유
+- **단점**: 파일 크기 제한, 동기화 복잡
+
+### 메모리 관리 기법 비교
+
+| 기법 | 목적 | 장점 | 단점 |
+|------|------|------|------|
+| **Multi-Level Page Table** | 페이지 테이블 절약 | 메모리 효율 | 변환 오버헤드 |
+| **Huge Pages** | TLB 효율 | 주소 변환 빠름 | 내부 단편화 |
+| **Copy-on-Write** | fork 최적화 | 빠른 프로세스 생성 | 첫 쓰기 지연 |
+| **mmap** | 파일 I/O 최적화 | 빠른 파일 접근 | 동기화 복잡 |
+
+## 애플리케이션 레벨 메모리 관리
+
+OS 레벨을 넘어 애플리케이션에서도 메모리 관리가 중요합니다.
+
+### 1단계: JVM 메모리 튜닝
+
+**문제:** 기본 JVM 설정으로는 대용량 처리 불가
+
+```bash
+# 기본 설정 (작은 힙)
+java -jar app.jar
+# 결과: OutOfMemoryError
+
+# 튜닝된 설정
+java -Xms4g \                    # 초기 힙 크기
+     -Xmx8g \                    # 최대 힙 크기
+     -XX:+UseG1GC \              # G1 GC 사용
+     -XX:MaxGCPauseMillis=200 \  # GC 최대 정지 시간
+     -XX:+UseStringDeduplication \ # 문자열 중복 제거
+     -XX:+PrintGCDetails \       # GC 로그
+     -jar app.jar
+```
+
+**힙 크기 선택 가이드:**
+
+| 애플리케이션 | 힙 크기 | GC 선택 |
+|-------------|--------|---------|
+| **소규모 (~100MB)** | 512MB - 1GB | Serial GC |
+| **중규모 (~1GB)** | 2GB - 4GB | G1 GC |
+| **대규모 (~10GB)** | 8GB - 16GB | G1 GC |
+| **초대규모 (>32GB)** | 32GB+ | ZGC, Shenandoah |
+
+**트레이드오프:**
+- **장점**: 메모리 부족 방지, GC 최적화
+- **단점**: 큰 힙은 GC 시간 증가, 메모리 낭비 가능
+
+### 2단계: Container Memory Management
+
+**문제:** 컨테이너가 호스트 메모리를 모두 사용
+
+```yaml
+# Docker Compose
+services:
+  app:
+    image: myapp
+    deploy:
+      resources:
+        limits:
+          memory: 2G       # 최대 2GB
+        reservations:
+          memory: 1G       # 최소 1GB 보장
+```
+
+```bash
+# Kubernetes Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+spec:
+  containers:
+  - name: app
+    image: myapp
+    resources:
+      requests:
+        memory: "1Gi"    # 최소 요청
+      limits:
+        memory: "2Gi"    # 최대 제한
+```
+
+**OOM Killer 동작:**
+
+```bash
+# 메모리 초과 시 컨테이너 종료
+dmesg | grep -i "killed process"
+[OOM Killer] Killed process 1234 (java) total-vm:4GB, anon-rss:2GB
+
+# 재시작 정책
+apiVersion: v1
+kind: Pod
+spec:
+  restartPolicy: Always  # OOM 시 자동 재시작
+```
+
+**트레이드오프:**
+- **장점**: 리소스 격리, 다중 테넌트 안정성
+- **단점**: OOM Killer 위험, 정확한 예측 필요
+
+### 3단계: Database Buffer Pool
+
+**문제:** DB가 매번 디스크 I/O 발생
+
+**해결: Buffer Pool (메모리 캐시)**
+
+```sql
+-- MySQL InnoDB Buffer Pool
+SET GLOBAL innodb_buffer_pool_size = 8G;  -- 물리 메모리의 70-80%
+
+-- 상태 확인
+SHOW STATUS LIKE 'Innodb_buffer_pool%';
+Innodb_buffer_pool_read_requests: 1000000
+Innodb_buffer_pool_reads: 50000
+→ Hit Rate = 95% (좋음)
+```
+
+```sql
+-- PostgreSQL Shared Buffers
+ALTER SYSTEM SET shared_buffers = '4GB';  -- 물리 메모리의 25%
+
+-- 상태 확인
+SELECT * FROM pg_stat_bgwriter;
+```
+
+**Buffer Pool 크기 선택:**
+
+| 메모리 | Buffer Pool | 이유 |
+|--------|------------|------|
+| **8GB** | 4-6GB | OS, 애플리케이션 여유 |
+| **16GB** | 10-12GB | DB 집중 서버 |
+| **32GB+** | 24GB+ | 전용 DB 서버 |
+
+**트레이드오프:**
+- **장점**: 디스크 I/O 감소, 쿼리 성능 향상
+- **단점**: 큰 Buffer Pool은 체크포인트 지연, 메모리 부족 위험
+
+### 4단계: Redis Memory Management
+
+**문제:** Redis가 모든 데이터를 메모리에 저장 → 메모리 부족
+
+**해결 1: Eviction Policy**
+
+```conf
+# redis.conf
+maxmemory 2gb
+maxmemory-policy allkeys-lru  # LRU로 키 제거
+```
+
+**Eviction Policy 비교:**
+
+| 정책 | 동작 | 사용 사례 |
+|------|------|----------|
+| **noeviction** | 쓰기 거부 | 데이터 손실 불가 |
+| **allkeys-lru** | 모든 키에서 LRU | 일반 캐시 |
+| **volatile-lru** | TTL 있는 키에서 LRU | 세션 캐시 |
+| **allkeys-random** | 랜덤 제거 | 균등 액세스 |
+
+**해결 2: Redis Cluster (분산)**
+
+```bash
+# 3개 마스터 + 3개 레플리카 (6노드)
+redis-cli --cluster create \
+  127.0.0.1:7000 127.0.0.1:7001 127.0.0.1:7002 \
+  127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005 \
+  --cluster-replicas 1
+```
+
+**트레이드오프:**
+- **장점**: 메모리 부족 자동 처리, 수평 확장
+- **단점**: 데이터 손실 가능 (eviction), 클러스터 관리 복잡
+
+### 5단계: 분산 캐싱
+
+**문제:** 단일 Redis로 처리량 부족
+
+**해결: Memcached + Consistent Hashing**
+
+```java
+// Consistent Hashing으로 여러 Memcached 서버 분산
+MemcachedClient client = new MemcachedClient(
+    new InetSocketAddress("cache1", 11211),
+    new InetSocketAddress("cache2", 11211),
+    new InetSocketAddress("cache3", 11211)
+);
+
+// 키가 해시되어 특정 서버로 라우팅
+client.set("user:123", 3600, userObject);
+```
+
+**Consistent Hashing 장점:**
+- 서버 추가/제거 시 최소한의 키만 재분배
+- 특정 서버 장애 시 다른 서버로 분산
+
+**Redis Cluster vs Memcached Cluster:**
+
+| 구분 | Redis Cluster | Memcached |
+|------|--------------|-----------|
+| **데이터 구조** | String, Hash, List, Set | String only |
+| **지속성** | RDB, AOF | 없음 |
+| **복제** | 마스터-레플리카 | 없음 |
+| **사용 사례** | 복잡한 데이터, 세션 | 단순 캐시 |
+
+**트레이드오프:**
+- **장점**: 높은 처리량, 수평 확장
+- **단점**: 네트워크 지연, 일관성 복잡도
+
+### 6단계: Application-Level Memory Pool
+
+**문제:** 객체 생성/소멸 오버헤드
+
+**해결: Object Pooling**
+
+```java
+// Apache Commons Pool
+GenericObjectPool<Connection> connectionPool = new GenericObjectPool<>(
+    new ConnectionFactory(),
+    new GenericObjectPoolConfig<>() {{
+        setMaxTotal(100);          // 최대 100개 연결
+        setMaxIdle(50);            // 최대 50개 유휴 연결
+        setMinIdle(10);            // 최소 10개 유휴 연결
+        setMaxWaitMillis(3000);    // 3초 대기
+    }}
+);
+
+// 사용
+Connection conn = connectionPool.borrowObject();
+try {
+    // 작업 수행
+} finally {
+    connectionPool.returnObject(conn);  // 풀에 반환
+}
+```
+
+**풀 크기 설정:**
+
+```
+적정 크기 = (동시 요청 수 × 평균 처리 시간) / 요청 간격
+
+예: 초당 100 요청, 평균 100ms 처리
+→ 100 × 0.1 = 10개
+```
+
+**트레이드오프:**
+- **장점**: 객체 재사용, GC 부담 감소
+- **단점**: 초기 메모리 사용, 유휴 객체 관리
+
+### 메모리 관리 전략 선택 가이드
+
+| 계층 | 도구 | 사용 시점 |
+|------|------|----------|
+| **OS** | Huge Pages, mmap | 대용량 데이터, 파일 I/O |
+| **JVM** | Heap Tuning, GC | Java 애플리케이션 |
+| **Container** | Memory Limits | 마이크로서비스, 클라우드 |
+| **DB** | Buffer Pool | 데이터베이스 서버 |
+| **Cache** | Redis, Memcached | 읽기 집중 워크로드 |
+| **Pool** | Connection Pool | DB/네트워크 연결 |
+
+### 진화 경로
+
+```
+1단계: OS 기본 설정
+   ↓ (성능 이슈)
+2단계: JVM/DB 튜닝
+   ↓ (트래픽 증가)
+3단계: 캐시 레이어 (Redis)
+   ↓ (단일 캐시 한계)
+4단계: 분산 캐싱
+   ↓ (메모리 부족)
+5단계: Huge Pages, mmap 최적화
+   ↓ (컨테이너 환경)
+6단계: Container Memory Management
+```
+
+## 정리
+
+**OS 레벨 메모리 관리:**
+- 가상 메모리: 물리 메모리보다 큰 주소 공간
+- 페이징: 고정 크기(4KB) 페이지로 관리
+- 페이지 교체: FIFO < Clock < LRU
+- TLB: 주소 변환 캐시로 성능 향상
+
+**고급 메모리 기법:**
+- Multi-Level Page Table: 페이지 테이블 메모리 절약
+- Huge Pages: TLB 효율 향상
+- Copy-on-Write: fork 최적화
+- mmap: 빠른 파일 I/O
+
+**애플리케이션 레벨:**
+- JVM: 힙 크기와 GC 튜닝
+- Container: Memory limits로 리소스 격리
+- DB: Buffer Pool로 디스크 I/O 감소
+- Redis: Eviction policy와 클러스터
+- 분산 캐싱: 수평 확장
+- Object Pool: 객체 재사용
+
+**선택 기준:**
+- 워크로드 특성에 따라 메모리 전략 선택
+- 계층별 최적화 (OS → JVM → 애플리케이션)
+- 모니터링으로 병목 지점 파악
+- 비용과 성능 사이의 트레이드오프 고려
