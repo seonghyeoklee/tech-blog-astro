@@ -355,6 +355,121 @@ java -XX:+HeapDumpOnOutOfMemoryError \
 
 Eclipse MAT이나 VisualVM으로 힙 덤프를 분석하면 어떤 객체가 메모리를 많이 차지하는지 확인할 수 있습니다.
 
+## 메모리 관리 전략
+
+GC 알고리즘만이 메모리 관리의 전부가 아닙니다. 다양한 전략으로 Heap 압박을 줄일 수 있습니다.
+
+### 1. Off-Heap Memory
+
+Heap이 아닌 Native Memory를 사용하여 GC 부담을 줄입니다.
+
+```java
+// Direct Buffer (Off-Heap 메모리 사용)
+ByteBuffer directBuffer = ByteBuffer.allocateDirect(1024 * 1024);  // 1MB
+// Heap을 거치지 않으므로 GC 대상이 아님
+
+// vs Heap Buffer
+ByteBuffer heapBuffer = ByteBuffer.allocate(1024 * 1024);
+// Heap에 할당되어 GC 대상
+```
+
+**사용 사례**:
+```java
+// 대용량 파일 처리
+try (FileChannel channel = FileChannel.open(path)) {
+    MappedByteBuffer buffer = channel.map(
+        FileChannel.MapMode.READ_ONLY, 0, channel.size()
+    );
+    // Memory-Mapped File: OS가 메모리 관리, GC 부담 없음
+}
+
+// Netty - 네트워크 I/O
+ByteBuf buffer = PooledByteBufAllocator.DEFAULT.directBuffer(256);
+// Direct Buffer + Pooling으로 GC 최소화
+```
+
+**트레이드오프**:
+- **장점**: GC 부담 감소, I/O 성능 향상
+- **단점**: 명시적 해제 필요, 디버깅 어려움, Native Memory 부족 위험
+
+### 2. Object Pooling
+
+객체를 재사용하여 생성/소멸 비용을 줄입니다.
+
+```java
+// Apache Commons Pool
+GenericObjectPool<Connection> pool = new GenericObjectPool<>(
+    new ConnectionFactory()
+);
+
+// 사용
+Connection conn = pool.borrowObject();
+try {
+    // 작업 수행
+} finally {
+    pool.returnObject(conn);  // 재사용을 위해 반환
+}
+```
+
+**실무 예제**:
+```java
+// Thread Pool
+ExecutorService executor = Executors.newFixedThreadPool(10);
+// 스레드 재사용, 매번 생성하지 않음
+
+// DB Connection Pool (HikariCP)
+HikariConfig config = new HikariConfig();
+config.setMaximumPoolSize(20);
+HikariDataSource dataSource = new HikariDataSource(config);
+// Connection 재사용
+```
+
+**트레이드오프**:
+- **장점**: 객체 생성 비용 제거, GC 압박 감소
+- **단점**: 상태 관리 복잡, 메모리 고정 사용, 스레드 안전성 고려 필요
+
+### 3. Weak/Soft References
+
+메모리가 부족할 때 GC가 회수할 수 있는 참조입니다.
+
+```java
+// Soft Reference - 메모리 부족 시 회수
+public class ImageCache {
+    private Map<String, SoftReference<BufferedImage>> cache = new HashMap<>();
+
+    public BufferedImage get(String key) {
+        SoftReference<BufferedImage> ref = cache.get(key);
+        if (ref != null) {
+            BufferedImage image = ref.get();
+            if (image != null) {
+                return image;  // 캐시 히트
+            }
+        }
+        // 캐시 미스 - 새로 로드
+        BufferedImage image = loadImage(key);
+        cache.put(key, new SoftReference<>(image));
+        return image;
+    }
+}
+```
+
+**Weak vs Soft**:
+```java
+// Weak Reference - 다음 GC에서 무조건 회수
+WeakReference<User> weakRef = new WeakReference<>(user);
+
+// Soft Reference - 메모리 부족할 때만 회수
+SoftReference<User> softRef = new SoftReference<>(user);
+```
+
+**사용 사례**:
+- **WeakReference**: WeakHashMap (캐시 키)
+- **SoftReference**: 이미지, 문서 캐시
+
+**트레이드오프**:
+- **장점**: 메모리 부족 시 자동 회수, OOM 방지
+- **단점**: 예측 불가능한 회수 시점, 캐시 미스 증가 가능
+
 ## GC 모니터링
 
 ### GC 로그 활성화
@@ -435,14 +550,241 @@ if (user.getStatus() == Status.ACTIVE) {  // enum 비교는 ==
 }
 ```
 
+## 아키텍처로 풀어내는 GC 문제
+
+GC 튜닝만으로는 해결되지 않는 문제가 많습니다. 아키텍처 설계로 근본적으로 해결할 수 있습니다.
+
+### 1. 캐시 외부화
+
+Heap 메모리에 캐시를 두면 GC 부담이 커집니다. 외부 캐시로 분리합니다.
+
+```java
+// Before: Heap 메모리에 캐시 (GC 부담)
+@Component
+public class ProductService {
+    private final Map<Long, Product> cache = new ConcurrentHashMap<>();
+
+    public Product getProduct(Long id) {
+        return cache.computeIfAbsent(id, this::loadFromDb);
+    }
+    // 캐시가 커지면 Old Generation 압박 → Full GC 빈발
+}
+
+// After: Redis로 외부화 (GC 부담 제거)
+@Component
+public class ProductService {
+    private final RedisTemplate<String, Product> redis;
+
+    public Product getProduct(Long id) {
+        String key = "product:" + id;
+        Product product = redis.opsForValue().get(key);
+        if (product == null) {
+            product = loadFromDb(id);
+            redis.opsForValue().set(key, product, 1, TimeUnit.HOURS);
+        }
+        return product;
+    }
+    // Redis가 메모리 관리, JVM Heap은 가벼움
+}
+```
+
+**효과**:
+- Heap 사용량 감소
+- Old Generation 압박 감소
+- Full GC 빈도 감소
+
+**트레이드오프**:
+- 네트워크 지연 추가 (1~5ms)
+- Redis 인프라 운영 필요
+- 직렬화/역직렬화 오버헤드
+
+### 2. Stateless 설계
+
+서버에 상태를 저장하지 않으면 Heap 사용량이 일정합니다.
+
+```java
+// Before: Session을 메모리에 저장 (Stateful)
+@Component
+public class SessionManager {
+    private final Map<String, HttpSession> sessions = new ConcurrentHashMap<>();
+    // 사용자 증가 → Heap 증가 → GC 압박
+}
+
+// After: Session을 외부에 저장 (Stateless)
+@Configuration
+@EnableRedisHttpSession
+public class SessionConfig {
+    // Spring Session + Redis
+    // 서버는 Stateless, 스케일 아웃 가능
+}
+```
+
+**효과**:
+- Heap 사용량 예측 가능
+- 서버 재시작 시 세션 유지
+- 수평 확장 용이
+
+**트레이드오프**:
+- 외부 스토리지 의존성
+- 네트워크 오버헤드
+
+### 3. 마이크로서비스 분리
+
+큰 Heap 하나보다 작은 Heap 여러 개가 GC에 유리합니다.
+
+```
+Before: Monolith (16GB Heap)
+┌────────────────────────────────────────┐
+│  Order + User + Product + Payment      │
+│  Heap: 16GB                            │
+│  Full GC: 5초                          │
+└────────────────────────────────────────┘
+
+After: Microservices (각 4GB Heap)
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│  Order   │ │   User   │ │ Product  │ │ Payment  │
+│ Heap: 4GB│ │ Heap: 4GB│ │ Heap: 4GB│ │ Heap: 4GB│
+│ GC: 500ms│ │ GC: 500ms│ │ GC: 500ms│ │ GC: 500ms│
+└──────────┘ └──────────┘ └──────────┘ └──────────┘
+```
+
+**효과**:
+- GC 시간 단축 (Heap 크기에 비례)
+- 장애 격리
+- 독립적인 GC 튜닝 가능
+
+**트레이드오프**:
+- 분산 시스템 복잡도
+- 네트워크 통신 오버헤드
+- 트랜잭션 관리 어려움
+
+### 4. Read Replica 분리
+
+조회 부하를 분산하여 각 서버의 Heap 부담을 줄입니다.
+
+```
+Before: Single Server
+┌────────────────────────┐
+│   Application          │
+│   Heap: 8GB            │
+│   읽기 + 쓰기 모두 처리  │
+│   Full GC 빈발         │
+└────────────────────────┘
+
+After: Read/Write 분리
+┌─────────────────┐  ┌──────────────┐
+│   Write Server  │  │  Read Server │ (스케일 아웃)
+│   Heap: 4GB     │  │  Heap: 2GB   │ x 3
+│   쓰기만 처리    │  │  읽기만 처리  │
+│   GC 안정적     │  │  캐시 활용   │
+└─────────────────┘  └──────────────┘
+```
+
+**효과**:
+- 읽기 서버는 캐시 활용, GC 적음
+- 쓰기 서버는 부하 분산
+- 독립적인 확장 가능
+
+**트레이드오프**:
+- Eventual Consistency
+- 인프라 복잡도
+
+### 5. 컨테이너 환경에서의 GC 설정
+
+Docker/Kubernetes에서는 JVM이 컨테이너 메모리를 인식하도록 설정해야 합니다.
+
+```dockerfile
+# Dockerfile
+FROM openjdk:17-jdk-slim
+
+# Container-aware JVM 설정
+ENV JAVA_OPTS="-XX:+UseContainerSupport \
+               -XX:MaxRAMPercentage=75.0 \
+               -XX:InitialRAMPercentage=50.0 \
+               -XX:+UseG1GC \
+               -XX:MaxGCPauseMillis=200"
+
+CMD java $JAVA_OPTS -jar app.jar
+```
+
+**설정 예시**:
+```yaml
+# Kubernetes Pod
+resources:
+  limits:
+    memory: "4Gi"
+  requests:
+    memory: "2Gi"
+
+# JVM은 limits의 75%를 Heap으로 사용 (3GB)
+```
+
+**주의사항**:
+- JVM은 Heap 외에도 Native Memory 사용 (Thread, GC, Code Cache 등)
+- Container 메모리 limits = Heap + Native Memory + OS
+- 보통 Container Memory의 75% 정도를 Heap으로 설정
+
+### 아키텍처 선택 가이드
+
+| GC 문제 | 아키텍처 해결책 |
+|---------|----------------|
+| 캐시로 인한 Old Generation 압박 | Redis/Memcached 외부화 |
+| 사용자 증가로 Heap 증가 | Stateless 설계 + Session 외부화 |
+| Full GC가 너무 김 (5초+) | 마이크로서비스 분리 (작은 Heap) |
+| 조회 부하로 GC 빈발 | Read Replica 분리 + 캐시 |
+| Container OOM Killed | Container-aware JVM 설정 |
+
+**진화 경로**:
+```
+1단계: GC 알고리즘 선택 (G1, ZGC)
+  ↓
+2단계: Heap 튜닝 + 객체 생성 최적화
+  ↓
+3단계: 캐시 외부화 (Redis)
+  ↓
+4단계: Stateless 설계
+  ↓
+5단계: 마이크로서비스 분리
+```
+
 ## 정리
 
-이 글에서 다룬 내용을 정리하면 다음과 같습니다.
+GC 문제 해결은 **기술**과 **아키텍처** 두 가지 차원의 접근이 필요합니다.
 
-- GC는 Mark and Sweep 방식으로 도달 불가능한 객체를 제거합니다
-- Young/Old Generation으로 나눠서 효율적으로 관리합니다
-- Minor GC는 빠르고 자주, Major GC는 느리고 가끔 발생합니다
-- G1 GC는 큰 힙에서 예측 가능한 일시 정지 시간을 제공합니다
-- Stop-the-World 시간을 줄이는 것이 GC 튜닝의 목표입니다
+**GC 기본 원리**:
+- Mark and Sweep: GC Root에서 도달 가능한 객체만 유지
+- Generational GC: Young/Old Generation 분리로 효율성 향상
+- Minor GC (빠름, 자주) vs Major/Full GC (느림, 가끔)
+- Stop-the-World: GC 동안 애플리케이션 일시 정지
 
-GC 문제가 발생하면 먼저 GC 로그와 Heap Dump를 분석하세요. 성급한 튜닝보다 정확한 원인 파악이 중요합니다.
+**GC 알고리즘 선택**:
+- **Serial GC**: 작은 힙, 단일 CPU (개발 환경)
+- **Parallel GC**: 처리량 중심, 배치 작업
+- **G1 GC**: 큰 힙(4GB+), 예측 가능한 일시 정지 (기본 추천)
+- **ZGC**: 초저지연(10ms 미만), 대용량 힙 (레이턴시 중요)
+
+**메모리 관리 전략**:
+- **Off-Heap Memory**: Direct Buffer로 GC 부담 제거 (I/O 성능 향상 트레이드오프)
+- **Object Pooling**: 재사용으로 생성 비용 절감 (상태 관리 복잡도 트레이드오프)
+- **Weak/Soft References**: 메모리 부족 시 자동 회수 (예측 불가능성 트레이드오프)
+
+**아키텍처 레벨 해결책**:
+- **캐시 외부화**: Redis/Memcached로 Heap 압박 감소 (네트워크 지연 트레이드오프)
+- **Stateless 설계**: Session 외부화로 Heap 일정 유지 (외부 의존성 트레이드오프)
+- **마이크로서비스**: 큰 Heap → 작은 Heap 여러 개로 GC 시간 단축 (분산 복잡도 트레이드오프)
+- **Read Replica**: 조회 부하 분산 (Eventual Consistency 트레이드오프)
+- **Container-aware**: JVM이 컨테이너 메모리 인식 (설정 복잡도)
+
+**문제 해결 순서**:
+1. **측정**: GC 로그, Heap Dump 수집 및 분석
+2. **원인 파악**: 메모리 누수 vs 용량 부족 vs 설계 문제
+3. **기술 레벨**: GC 알고리즘 선택, Heap 튜닝, 객체 생성 최적화
+4. **아키텍처 레벨**: 캐시 외부화, Stateless 설계, 마이크로서비스 분리
+
+**핵심 원칙**:
+- 측정 없는 튜닝은 추측일 뿐입니다
+- GC 튜닝보다 코드 개선이 더 효과적일 때가 많습니다
+- Heap이 너무 크면 GC 시간이 길어지고, 너무 작으면 GC가 자주 발생합니다
+- GC 문제가 계속되면 아키텍처 재설계를 고려하세요
+
+성급한 GC 튜닝보다 정확한 원인 파악이 중요합니다. 문제의 본질이 애플리케이션 설계에 있다면, 아키텍처 레벨의 해결책이 더 효과적입니다.
