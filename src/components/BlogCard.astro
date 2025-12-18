@@ -25,20 +25,32 @@ const { title, description, pubDate, heroImage, tags, series, seriesOrder, slug,
 
 const placeholders = [placeholder1, placeholder2, placeholder3, placeholder4, placeholder5];
 
-// Thumbnail selection logic
+// Thumbnail selection logic - 제목 해시 기반으로 다양화
 const getImageSource = () => {
 	if (heroImage) {
 		return heroImage;
 	}
 
-	// Use tag-based hash for consistent placeholder selection
-	if (tags && tags.length > 0) {
-		const tagHash = tags[0].toLowerCase().charCodeAt(0);
-		return placeholders[tagHash % 5];
+	// 제목의 모든 문자를 합산하여 해시값 생성
+	let hash = 0;
+	for (let i = 0; i < title.length; i++) {
+		hash = ((hash << 5) - hash) + title.charCodeAt(i);
+		hash = hash & hash; // Convert to 32bit integer
 	}
 
-	// Fallback to index-based selection
-	return placeholders[index % 5];
+	// 태그가 있으면 태그도 해시에 포함
+	if (tags && tags.length > 0) {
+		for (let i = 0; i < tags[0].length; i++) {
+			hash = ((hash << 3) - hash) + tags[0].charCodeAt(i);
+			hash = hash & hash;
+		}
+	}
+
+	// 날짜도 해시에 포함하여 더 다양화
+	const dateHash = pubDate.getDate() + pubDate.getMonth() + pubDate.getFullYear();
+	hash = hash + dateHash;
+
+	return placeholders[Math.abs(hash) % 5];
 };
 
 const imageSrc = getImageSource();
@@ -229,12 +241,21 @@ const imageSrc = getImageSource();
 	}
 
 	/* Tag colors - matching existing theme */
-	.tag-java { background: #007396; color: white; }
+	.tag-java { background: #f89820; color: white; }
+	.tag-kotlin { background: #7F52FF; color: white; }
 	.tag-spring { background: #6DB33F; color: white; }
-	.tag-jpa { background: #59666C; color: white; }
-	.tag-mybatis { background: #B7312C; color: white; }
+	.tag-architecture { background: #3498db; color: white; }
 	.tag-database { background: #336791; color: white; }
-	.tag-network { background: #0066CC; color: white; }
+	.tag-mysql { background: #4479A1; color: white; }
+	.tag-jpa { background: #59666C; color: white; }
+	.tag-redis { background: #DC382D; color: white; }
+	.tag-kafka { background: #231F20; color: white; }
+	.tag-docker { background: #2496ED; color: white; }
+	.tag-kubernetes { background: #326CE5; color: white; }
+	.tag-aws { background: #FF9900; color: white; }
+	.tag-cs { background: #6366F1; color: white; }
+	.tag-os { background: #8B5CF6; color: white; }
+	.tag-network { background: #06B6D4; color: white; }
 	.tag-http { background: #005A9C; color: white; }
 	.tag-tcp { background: #004B87; color: white; }
 	.tag-performance { background: #FF6B35; color: white; }
@@ -243,7 +264,6 @@ const imageSrc = getImageSource();
 	.tag-async { background: #16A085; color: white; }
 	.tag-sync { background: #2C3E50; color: white; }
 	.tag-concurrency { background: #8E44AD; color: white; }
-	.tag-architecture { background: #34495E; color: white; }
 
 	/* Dark mode adjustments */
 	[data-theme="dark"] .series-badge {

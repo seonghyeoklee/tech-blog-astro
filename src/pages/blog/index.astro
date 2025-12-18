@@ -128,7 +128,7 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 			/* 글 목록 - 그리드 레이아웃 */
 			.post-grid {
 				display: grid;
-				grid-template-columns: repeat(4, 1fr);
+				grid-template-columns: repeat(3, 1fr);
 				gap: 1.5em;
 			}
 
@@ -150,13 +150,6 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 			}
 
 			/* 반응형 그리드 레이아웃 */
-			@media (max-width: 960px) {
-				.post-grid {
-					grid-template-columns: repeat(3, 1fr);
-					gap: 1.25em;
-				}
-			}
-
 			@media (max-width: 720px) {
 				.post-grid {
 					grid-template-columns: repeat(2, 1fr);
