@@ -287,6 +287,470 @@ executor.setMaxPoolSize(20);
 executor.setMaxPoolSize(50);  # I/O 대기 고려
 ```
 
+## 고급 스케줄링 기법
+
+전통적인 스케줄링 외에도 다양한 고급 기법이 있습니다.
+
+### Multi-Level Feedback Queue (MLFQ)
+
+작업의 특성을 학습해서 우선순위를 동적으로 조정하는 방식입니다.
+
+```
+높은 우선순위 큐: [짧고 빠른 작업]  ← 타임 슬라이스 작음 (8ms)
+     ↓ (계속 CPU 사용하면 강등)
+중간 우선순위 큐: [보통 작업]      ← 타임 슬라이스 보통 (16ms)
+     ↓ (계속 CPU 사용하면 강등)
+낮은 우선순위 큐: [CPU 집약적]    ← 타임 슬라이스 큼 (32ms)
+```
+
+**동작 방식**:
+1. 새 작업은 최상위 큐에서 시작
+2. CPU를 많이 쓰면 아래 큐로 강등
+3. I/O 대기 후 다시 실행되면 상위 큐로 승격
+4. 주기적으로 모든 작업을 최상위 큐로 올려서 Starvation 방지
+
+**장점**:
+- 작업 특성을 자동 학습
+- I/O 바운드 작업에 우선순위 (응답성 좋음)
+- CPU 바운드 작업도 공평하게 처리
+- Starvation 방지 (Aging)
+
+**단점**:
+- 구현 복잡도 높음
+- 큐 개수와 타임 슬라이스 조정 필요
+- 우선순위 역전 문제 가능
+
+### Work-Stealing (ForkJoinPool)
+
+Java의 ForkJoinPool이 사용하는 방식입니다. 각 스레드가 자신의 작업 큐를 가지고, 일이 없으면 다른 스레드 큐에서 작업을 훔칩니다.
+
+```java
+// ForkJoinPool의 Work-Stealing
+ForkJoinPool pool = new ForkJoinPool();
+RecursiveTask<Long> task = new FibonacciTask(40);
+Long result = pool.invoke(task);
+
+class FibonacciTask extends RecursiveTask<Long> {
+    private final long n;
+
+    @Override
+    protected Long compute() {
+        if (n <= 1) return n;
+
+        // 작업을 분할해서 각 스레드 큐에 할당
+        FibonacciTask f1 = new FibonacciTask(n - 1);
+        FibonacciTask f2 = new FibonacciTask(n - 2);
+
+        f1.fork();  // 다른 스레드가 가져갈 수 있도록 큐에 넣음
+        return f2.compute() + f1.join();
+    }
+}
+```
+
+**동작 방식**:
+```
+Thread 1 큐: [Task A, Task B, Task C]  ← 바쁨
+Thread 2 큐: []                        ← 비어있음, 다른 큐에서 훔침
+Thread 3 큐: [Task D]                  ← 보통
+
+Thread 2가 Thread 1의 큐에서 Task C를 훔쳐옴 (LIFO에서 FIFO로)
+```
+
+**장점**:
+- 작업 분산 자동화
+- CPU 활용률 높음
+- Lock contention 적음 (각자 큐 소유)
+
+**단점**:
+- 작업 분할이 필요 (Divide & Conquer)
+- 작업 크기가 불균등하면 비효율
+
+### Priority Queue Scheduling
+
+작업마다 우선순위를 부여하는 방식입니다.
+
+```java
+// Spring에서 우선순위 스레드 풀
+@Configuration
+public class PriorityThreadPoolConfig {
+    @Bean(name = "priorityExecutor")
+    public ThreadPoolTaskExecutor priorityExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(10);
+        executor.setMaxPoolSize(20);
+        executor.setQueueCapacity(100);
+        executor.setThreadPriority(Thread.MAX_PRIORITY);  // 우선순위 설정
+        return executor;
+    }
+}
+
+// 실시간 작업에 높은 우선순위
+@Async("priorityExecutor")
+public void criticalPayment() {
+    // 결제 처리 - 높은 우선순위
+}
+
+// 백그라운드 작업에 낮은 우선순위
+@Async("backgroundExecutor")
+public void generateReport() {
+    // 보고서 생성 - 낮은 우선순위
+}
+```
+
+**우선순위 역전 문제**:
+```
+낮은 우선순위 작업 L이 자원 X를 획득
+높은 우선순위 작업 H가 자원 X를 필요로 함
+→ H는 L이 끝날 때까지 대기 (우선순위가 역전됨)
+```
+
+**해결 방법**: Priority Inheritance (우선순위 상속)
+- L이 자원 X를 가지고 있는 동안 H의 우선순위를 상속
+- L이 빨리 끝나고 자원을 반환하면 원래 우선순위로 복귀
+
+### Real-Time Scheduling
+
+정해진 시간 내에 반드시 실행되어야 하는 작업에 사용합니다.
+
+**EDF (Earliest Deadline First)**:
+```
+작업 A: 실행 시간 3ms, 마감 시간 10ms
+작업 B: 실행 시간 2ms, 마감 시간 5ms
+작업 C: 실행 시간 1ms, 마감 시간 3ms
+
+처리 순서: C(마감 3ms) → B(마감 5ms) → A(마감 10ms)
+```
+
+**Rate Monotonic Scheduling**:
+- 주기가 짧은 작업에 높은 우선순위
+- 정적 우선순위 (한 번 정해지면 고정)
+
+```
+작업 A: 주기 10ms (높은 우선순위)
+작업 B: 주기 20ms (중간 우선순위)
+작업 C: 주기 50ms (낮은 우선순위)
+```
+
+**실무 예시** (Spring Scheduler):
+```java
+@Scheduled(fixedRate = 1000)  // 1초마다 실행, 높은 우선순위
+public void criticalMonitoring() {
+    // 실시간 모니터링
+}
+
+@Scheduled(fixedRate = 60000)  // 1분마다 실행, 낮은 우선순위
+public void statisticsAggregation() {
+    // 통계 집계
+}
+```
+
+### Gang Scheduling
+
+여러 스레드를 한 그룹으로 묶어서 동시에 스케줄링하는 방식입니다.
+
+```
+Group 1: [Thread A1, Thread A2, Thread A3, Thread A4]
+Group 2: [Thread B1, Thread B2]
+
+CPU 1    CPU 2    CPU 3    CPU 4
+------   ------   ------   ------
+ A1       A2       A3       A4     ← 동시에 실행
+ B1       B2       idle     idle   ← 동시에 실행
+ A1       A2       A3       A4
+```
+
+**장점**:
+- 스레드 간 동기화 대기 시간 감소
+- 병렬 처리 효율 증가
+
+**단점**:
+- CPU 낭비 가능 (idle 상태)
+- 스케줄링 복잡도 증가
+
+## 아키텍처 레벨의 해결책
+
+스케줄링 문제를 시스템 아키텍처로 해결하는 방법들입니다.
+
+### Container Orchestration (Kubernetes)
+
+컨테이너 레벨에서 리소스를 스케줄링하는 방식입니다.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: api-server
+spec:
+  containers:
+  - name: app
+    image: my-app:1.0
+    resources:
+      requests:
+        cpu: "500m"      # 0.5 CPU 코어 요청
+        memory: "1Gi"
+      limits:
+        cpu: "1000m"     # 최대 1 CPU 코어
+        memory: "2Gi"
+    priorityClassName: high-priority  # 우선순위 클래스
+```
+
+**Kubernetes Scheduling**:
+1. **Filtering**: 조건을 만족하는 노드 찾기 (리소스, affinity)
+2. **Scoring**: 각 노드에 점수 부여 (리소스 여유, 분산)
+3. **Binding**: 가장 높은 점수의 노드에 Pod 할당
+
+**우선순위 기반 스케줄링**:
+```yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority
+value: 1000000      # 높은 값 = 높은 우선순위
+globalDefault: false
+description: "Critical business workload"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority
+value: 100
+description: "Background batch jobs"
+```
+
+**Preemption** (선점):
+- 리소스 부족 시 낮은 우선순위 Pod를 종료하고 높은 우선순위 Pod 실행
+- 중요한 서비스가 항상 실행되도록 보장
+
+### NUMA-Aware Scheduling
+
+NUMA (Non-Uniform Memory Access) 아키텍처를 고려한 스케줄링입니다.
+
+```
+Node 0: [CPU 0-7, Memory 32GB]  ← 로컬 메모리 접근 빠름
+Node 1: [CPU 8-15, Memory 32GB] ← 원격 메모리 접근 느림
+
+스레드를 같은 NUMA 노드의 CPU에 고정하면 성능 향상
+```
+
+```bash
+# 특정 NUMA 노드에 프로세스 고정
+$ numactl --cpunodebind=0 --membind=0 java -jar app.jar
+
+# NUMA 상태 확인
+$ numactl --hardware
+available: 2 nodes (0-1)
+node 0 cpus: 0 1 2 3 4 5 6 7
+node 0 size: 32768 MB
+node 1 cpus: 8 9 10 11 12 13 14 15
+node 1 size: 32768 MB
+```
+
+### Distributed Task Scheduling
+
+분산 시스템에서의 작업 스케줄링입니다.
+
+**Apache Spark** (YARN Scheduler):
+```scala
+// Fair Scheduler - 여러 사용자가 리소스 공평하게 분배
+val conf = new SparkConf()
+  .set("spark.scheduler.mode", "FAIR")
+  .set("spark.scheduler.allocation.file", "fairscheduler.xml")
+
+// 우선순위 풀 설정
+sc.setLocalProperty("spark.scheduler.pool", "high-priority")
+val result = data.map(x => heavyComputation(x)).collect()
+
+sc.setLocalProperty("spark.scheduler.pool", "low-priority")
+val batch = data.map(x => batchProcess(x)).collect()
+```
+
+**Hadoop YARN** (Capacity Scheduler):
+```xml
+<configuration>
+  <property>
+    <name>yarn.scheduler.capacity.root.queues</name>
+    <value>production,development,batch</value>
+  </property>
+
+  <property>
+    <name>yarn.scheduler.capacity.root.production.capacity</name>
+    <value>70</value>  <!-- 프로덕션에 70% 할당 -->
+  </property>
+
+  <property>
+    <name>yarn.scheduler.capacity.root.development.capacity</name>
+    <value>20</value>  <!-- 개발에 20% 할당 -->
+  </property>
+
+  <property>
+    <name>yarn.scheduler.capacity.root.batch.capacity</name>
+    <value>10</value>  <!-- 배치에 10% 할당 -->
+  </property>
+</configuration>
+```
+
+### Message Queue Based Task Distribution
+
+메시지 큐로 작업을 분산하는 방식입니다.
+
+```java
+// RabbitMQ Priority Queue
+@Configuration
+public class RabbitConfig {
+    @Bean
+    public Queue priorityQueue() {
+        Map<String, Object> args = new HashMap<>();
+        args.put("x-max-priority", 10);  // 우선순위 0-10
+        return new Queue("task.queue", true, false, false, args);
+    }
+}
+
+// Producer - 우선순위 부여
+@Service
+public class TaskProducer {
+    public void sendHighPriorityTask(Task task) {
+        rabbitTemplate.convertAndSend("task.queue", task, message -> {
+            message.getMessageProperties().setPriority(10);  // 높은 우선순위
+            return message;
+        });
+    }
+
+    public void sendLowPriorityTask(Task task) {
+        rabbitTemplate.convertAndSend("task.queue", task, message -> {
+            message.getMessageProperties().setPriority(1);  // 낮은 우선순위
+            return message;
+        });
+    }
+}
+```
+
+### Cron-based Scheduling (분산 Cron)
+
+여러 서버에서 스케줄 작업을 분산 실행하는 방식입니다.
+
+```java
+// Spring Quartz with Cluster
+@Configuration
+public class QuartzConfig {
+    @Bean
+    public SchedulerFactoryBean schedulerFactory() {
+        SchedulerFactoryBean factory = new SchedulerFactoryBean();
+
+        Properties properties = new Properties();
+        properties.setProperty("org.quartz.scheduler.instanceId", "AUTO");
+        properties.setProperty("org.quartz.jobStore.isClustered", "true");
+        properties.setProperty("org.quartz.jobStore.class",
+            "org.quartz.impl.jdbcjobstore.JobStoreTX");
+
+        factory.setQuartzProperties(properties);
+        return factory;
+    }
+}
+
+// 분산 환경에서 중복 실행 방지
+@Component
+public class ScheduledTasks {
+    @Scheduled(cron = "0 0 2 * * ?")  // 매일 새벽 2시
+    public void dailyBatchJob() {
+        // Quartz 클러스터가 한 서버에서만 실행되도록 보장
+    }
+}
+```
+
+## 스케줄링 기법 비교
+
+### 스케줄링 알고리즘 트레이드오프
+
+| 알고리즘 | 평균 대기 시간 | 응답성 | 공평성 | Starvation | 구현 복잡도 | 주요 용도 |
+|---------|--------------|--------|--------|------------|------------|----------|
+| FCFS | 나쁨 | 나쁨 | 좋음 | 없음 | 낮음 | 배치 처리 |
+| SJF | 좋음 | 좋음 | 나쁨 | 있음 | 중간 | 이론적 |
+| Round Robin | 보통 | 좋음 | 좋음 | 없음 | 낮음 | 범용 OS |
+| Priority | 보통 | 보통 | 나쁨 | 있음 | 중간 | 실시간 시스템 |
+| MLFQ | 좋음 | 좋음 | 좋음 | 없음 (Aging) | 높음 | 현대 OS |
+| Work-Stealing | 좋음 | 좋음 | 좋음 | 없음 | 높음 | 병렬 처리 |
+
+### 스레드 풀 vs 메시지 큐
+
+| 기준 | 스레드 풀 | 메시지 큐 |
+|------|----------|----------|
+| 처리 속도 | 빠름 (메모리 내) | 느림 (네트워크, 디스크) |
+| 확장성 | 단일 서버 제한 | 여러 서버로 분산 |
+| 안정성 | 서버 죽으면 작업 유실 | 메시지 저장 (영속성) |
+| 우선순위 | Java PriorityQueue | RabbitMQ Priority Queue |
+| 재시도 | 직접 구현 | DLQ, Requeue 지원 |
+| 모니터링 | JMX, 로그 | Queue 깊이, Consumer 수 |
+
+### 동기 vs 비동기 스케줄링
+
+| 기준 | 동기 (Thread-per-Request) | 비동기 (Event Loop) |
+|------|--------------------------|---------------------|
+| 프로그래밍 모델 | 직관적 | 복잡 (콜백, Promise) |
+| 컨텍스트 스위칭 | 많음 | 적음 |
+| 동시 처리 수 | ~수천 | 수만~수십만 |
+| 메모리 사용 | 높음 (스레드당 1MB) | 낮음 |
+| 블로킹 작업 | 가능 | 불가 (Worker Pool 필요) |
+
+## 진화 경로
+
+실무에서는 단계적으로 진화하는 것이 좋습니다.
+
+```
+1단계: 단순 스레드 풀
+  - Tomcat 기본 설정
+  - 단일 스레드 풀
+  - 모니터링 없음
+
+2단계: 작업 분리
+  - CPU 바운드 vs I/O 바운드 분리
+  - 중요도별 스레드 풀 분리
+  - 기본 모니터링 도입 (JMX)
+
+3단계: 우선순위 도입
+  - Priority Queue 사용
+  - 실시간 작업 우선 처리
+  - ThreadPoolExecutor 커스터마이징
+
+4단계: 고급 스케줄링
+  - Work-Stealing (ForkJoinPool)
+  - MLFQ 패턴 적용
+  - NUMA-aware 배치
+
+5단계: 분산 스케줄링
+  - 메시지 큐 도입 (RabbitMQ, Kafka)
+  - 컨테이너 오케스트레이션 (Kubernetes)
+  - 분산 작업 스케줄러 (Quartz Cluster, Airflow)
+```
+
+## 실전 선택 기준
+
+**다음과 같은 경우 단순 스레드 풀을 유지하세요**:
+- 단일 서버, 트래픽 적음
+- 작업 특성이 비슷함
+- 빠른 개발과 안정성 중요
+
+**다음과 같은 경우 작업별 스레드 풀 분리를 고려하세요**:
+- CPU 바운드와 I/O 바운드 혼재
+- 중요한 작업과 배경 작업 구분 필요
+- Convoy Effect 발생
+
+**다음과 같은 경우 우선순위 스케줄링을 고려하세요**:
+- 실시간 처리 요구사항
+- SLA가 다른 작업 혼재
+- 리소스 부족 시 중요 작업 우선
+
+**다음과 같은 경우 메시지 큐를 고려하세요**:
+- 마이크로서비스 아키텍처
+- 작업 영속성 필요
+- 서버 확장성 필요
+- 재시도 및 DLQ 필요
+
+**다음과 같은 경우 컨테이너 오케스트레이션을 고려하세요**:
+- 여러 서비스 운영
+- 자동 스케일링 필요
+- 리소스 할당 자동화
+- 장애 복구 자동화
+
 ## 정리
 
 - CPU 스케줄링은 제한된 CPU를 여러 스레드에 분배하는 방법입니다
@@ -296,3 +760,6 @@ executor.setMaxPoolSize(50);  # I/O 대기 고려
 - CPU 바운드는 스레드를 적게 (코어 수 정도), I/O 바운드는 많게 (수십~수백 개)
 - 실무에서는 작업 종류별로 스레드 풀을 분리하고 모니터링하며 튜닝합니다
 - VisualVM으로 스레드 상태를 확인하면 CPU/I/O 바운드를 판단할 수 있습니다
+- **고급 기법**: MLFQ, Work-Stealing, Priority Queue, Real-Time Scheduling으로 효율 개선
+- **아키텍처 해결책**: Kubernetes, 메시지 큐, 분산 스케줄러로 확장성과 안정성 확보
+- **진화적 접근**: 단순 스레드 풀에서 시작해서 필요에 따라 분산 스케줄링으로 발전
