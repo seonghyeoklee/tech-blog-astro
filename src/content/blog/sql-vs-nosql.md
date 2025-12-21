@@ -2,7 +2,7 @@
 title: 'SQL vs NoSQL - 일관성과 확장성의 선택'
 description: 'RDB와 NoSQL의 차이, 각각의 장단점, 실무에서의 선택 기준을 정리했습니다'
 pubDate: 'Dec 21 2024'
-tags: ['Database', 'Architecture', 'Redis', 'MongoDB']
+tags: ['Database', 'Architecture', 'Redis']
 series: 'tech-tradeoffs'
 seriesOrder: 4
 quiz:

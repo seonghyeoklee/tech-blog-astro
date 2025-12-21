@@ -2,7 +2,7 @@
 title: '모놀리식 vs MSA - 단순함과 확장성의 선택'
 description: '모놀리식과 마이크로서비스 아키텍처의 차이, 각각의 장단점, 실무 선택 기준을 정리했습니다'
 pubDate: 'Dec 20 2024'
-tags: ['Architecture', 'MSA', 'Spring']
+tags: ['Architecture', 'Spring']
 series: 'tech-tradeoffs'
 seriesOrder: 3
 quiz:

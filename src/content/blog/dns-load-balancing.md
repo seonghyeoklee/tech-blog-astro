@@ -2,7 +2,7 @@
 title: 'DNS와 로드밸런싱 - 요청이 서버에 도달하는 과정'
 description: 'DNS 동작 원리와 L4/L7 로드밸런서의 차이를 정리했습니다'
 pubDate: 'Dec 14 2024'
-tags: ['CS', 'Network', 'Infrastructure']
+tags: ['CS', 'Network']
 series: 'network-fundamentals'
 seriesOrder: 3
 quiz:
