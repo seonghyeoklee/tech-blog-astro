@@ -1,7 +1,7 @@
 ---
 term: 'SAGA 패턴'
 aliases: ['Saga', '사가 패턴', 'SAGA']
-category: 'Architecture'
+category: 'architecture'
 summary: 'MSA에서 분산 트랜잭션을 처리하기 위한 패턴. 각 서비스의 로컬 트랜잭션을 순차적으로 실행하고, 실패 시 보상 트랜잭션을 실행한다.'
 ---
 

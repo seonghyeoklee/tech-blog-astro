@@ -1,7 +1,7 @@
 ---
 term: 'Circuit Breaker'
 aliases: ['서킷 브레이커', '회로 차단기']
-category: 'Architecture'
+category: 'architecture'
 summary: '장애가 발생한 서비스로의 호출을 차단하여 장애 전파를 방지하는 패턴. 일정 시간 후 복구 여부를 확인한다.'
 ---
 
