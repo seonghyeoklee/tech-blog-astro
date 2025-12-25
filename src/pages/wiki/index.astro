@@ -166,11 +166,9 @@ Object.values(categories).forEach(cat => {
 		<Footer />
 
 		<script>
-			const searchInput = document.getElementById('wiki-search') as HTMLInputElement;
-			const wikiItems = document.querySelectorAll('.wiki-item');
-
-			searchInput?.addEventListener('input', (e) => {
+			function handleSearch(e: Event) {
 				const query = (e.target as HTMLInputElement).value.toLowerCase();
+				const wikiItems = document.querySelectorAll('.wiki-item');
 
 				wikiItems.forEach(item => {
 					const term = item.getAttribute('data-term') || '';
@@ -182,7 +180,26 @@ Object.values(categories).forEach(cat => {
 						item.classList.add('hidden');
 					}
 				});
-			});
+			}
+
+			function initSearch() {
+				const searchInput = document.getElementById('wiki-search') as HTMLInputElement;
+				if (!searchInput) return;
+
+				// 기존 리스너 제거 후 새로 등록
+				searchInput.removeEventListener('input', handleSearch);
+				searchInput.addEventListener('input', handleSearch);
+			}
+
+			// 초기화
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', initSearch);
+			} else {
+				initSearch();
+			}
+
+			// View Transitions 대응
+			document.addEventListener('astro:page-load', initSearch);
 		</script>
 		<Analytics />
 	</body>
