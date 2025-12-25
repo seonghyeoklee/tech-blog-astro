@@ -3,6 +3,7 @@ term: 'Cardinality'
 aliases: ['카디널리티']
 category: 'database'
 summary: '컬럼에서 고유한 값의 개수, 인덱스 효율성을 결정하는 지표'
+related: [index, b-plus-tree, covering-index]
 ---
 
 카디널리티는 컬럼에 있는 고유한 값의 개수입니다. 인덱스 설계 시 중요한 지표입니다.

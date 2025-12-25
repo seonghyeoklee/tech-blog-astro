@@ -3,6 +3,7 @@ term: 'CAP 정리'
 aliases: ['CAP Theorem', 'CAP 이론', 'Brewer의 정리']
 category: 'database'
 summary: '분산 시스템에서 일관성(C), 가용성(A), 분할 내성(P) 중 2가지만 동시에 만족할 수 있다는 이론'
+related: ['base', 'nosql', 'msa', 'sharding']
 ---
 
 ## 정의

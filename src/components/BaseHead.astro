@@ -23,8 +23,13 @@ const { title, description, image = FallbackImage, pubDate, updatedDate, keyword
 <!-- Theme initialization (before render to prevent flash) -->
 <script is:inline>
 	(function() {
-		const theme = localStorage.getItem('theme') ||
-			(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+		// 다크모드를 기본값으로 강제 설정 (v2 마이그레이션)
+		const themeVersion = localStorage.getItem('theme-version');
+		if (themeVersion !== '2') {
+			localStorage.setItem('theme', 'dark');
+			localStorage.setItem('theme-version', '2');
+		}
+		const theme = localStorage.getItem('theme') || 'dark';
 		document.documentElement.setAttribute('data-theme', theme);
 	})();
 </script>

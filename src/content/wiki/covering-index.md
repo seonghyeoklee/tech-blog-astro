@@ -3,6 +3,7 @@ term: 'Covering Index'
 aliases: ['커버링 인덱스']
 category: 'database'
 summary: '쿼리에 필요한 모든 컬럼이 인덱스에 포함되어 테이블 접근이 불필요한 인덱스'
+related: [index, clustered-index, cardinality]
 ---
 
 커버링 인덱스는 SELECT 절의 모든 컬럼이 인덱스에 포함되어 있어, 테이블을 읽지 않고 인덱스만으로 쿼리를 처리하는 경우입니다.

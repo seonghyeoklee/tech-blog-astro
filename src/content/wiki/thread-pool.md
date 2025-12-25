@@ -3,6 +3,7 @@ term: '스레드 풀'
 aliases: ['Thread Pool', 'ThreadPool']
 category: 'general'
 summary: '미리 생성해둔 스레드들을 재사용하여 스레드 생성 비용을 줄이는 기법'
+related: ['thread', 'connection-pool']
 ---
 
 스레드 풀(Thread Pool)은 스레드를 미리 일정 개수 만들어두고, 작업이 들어오면 유휴 스레드에 할당하는 방식입니다.

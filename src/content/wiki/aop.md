@@ -3,6 +3,7 @@ term: 'AOP'
 aliases: ['Aspect Oriented Programming', '관점 지향 프로그래밍']
 category: 'spring'
 summary: '횡단 관심사를 모듈화하여 핵심 로직과 분리하는 프로그래밍 패러다임'
+related: ['proxy', 'proxy-pattern', 'transactional']
 ---
 
 AOP(Aspect Oriented Programming)는 로깅, 트랜잭션, 보안 같은 횡단 관심사(Cross-cutting Concerns)를 핵심 비즈니스 로직에서 분리하는 프로그래밍 기법입니다.

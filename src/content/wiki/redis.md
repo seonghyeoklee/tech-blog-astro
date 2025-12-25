@@ -3,6 +3,7 @@ term: 'Redis'
 aliases: ['레디스', 'Remote Dictionary Server']
 category: 'database'
 summary: '인메모리 Key-Value 저장소. 캐시, 세션, 메시지 브로커로 활용되며 밀리초 단위의 빠른 응답 제공'
+related: [sharding, ttl, cache]
 ---
 
 ## 정의

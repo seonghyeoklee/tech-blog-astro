@@ -3,6 +3,7 @@ term: 'Redo Log'
 aliases: ['리두 로그', 'WAL']
 category: 'database'
 summary: '커밋된 데이터의 지속성을 보장하기 위해 변경 사항을 기록하는 로그'
+related: [undo-log, transaction, innodb, acid]
 ---
 
 Redo Log는 트랜잭션이 커밋될 때 변경 사항을 기록하는 로그입니다. 시스템 장애 시 데이터를 복구하는 데 사용됩니다.

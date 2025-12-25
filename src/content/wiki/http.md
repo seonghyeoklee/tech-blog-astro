@@ -3,6 +3,7 @@ term: 'HTTP'
 aliases: ['HyperText Transfer Protocol']
 category: 'infra'
 summary: '웹에서 클라이언트와 서버 간 데이터를 주고받기 위한 프로토콜'
+related: ['https', 'rest', 'dns']
 ---
 
 HTTP(HyperText Transfer Protocol)는 웹의 기본 통신 프로토콜입니다.

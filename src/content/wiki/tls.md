@@ -3,6 +3,7 @@ term: 'TLS'
 aliases: ['Transport Layer Security', 'SSL']
 category: 'infra'
 summary: '네트워크 통신을 암호화하는 보안 프로토콜'
+related: [rest, base]
 ---
 
 TLS(Transport Layer Security)는 네트워크 통신을 암호화하여 도청과 변조를 방지하는 프로토콜입니다. SSL의 후속 버전입니다.

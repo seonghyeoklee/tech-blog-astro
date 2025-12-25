@@ -3,6 +3,7 @@ term: 'Connection Pool'
 aliases: ['커넥션 풀', 'DBCP', 'HikariCP']
 category: 'database'
 summary: '데이터베이스 연결을 미리 생성해두고 재사용하는 기법'
+related: ['thread-pool', 'deadlock']
 ---
 
 Connection Pool은 데이터베이스 연결(Connection)을 미리 생성해두고 필요할 때 빌려쓰고 반납하는 방식입니다. 연결 생성/해제 비용을 줄여 성능을 향상시킵니다.

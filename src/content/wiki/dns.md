@@ -3,6 +3,7 @@ term: 'DNS'
 aliases: ['Domain Name System', '도메인 네임 시스템']
 category: 'infra'
 summary: '도메인 이름을 IP 주소로 변환하는 분산 데이터베이스 시스템'
+related: [round-robin, ttl, health-check]
 ---
 
 DNS는 사람이 읽기 쉬운 도메인 이름(example.com)을 컴퓨터가 이해하는 IP 주소(43.201.52.89)로 변환합니다.

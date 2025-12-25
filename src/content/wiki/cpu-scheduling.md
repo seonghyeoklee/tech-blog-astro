@@ -3,6 +3,7 @@ term: 'CPU 스케줄링'
 aliases: ['프로세스 스케줄링', 'CPU Scheduling', 'Process Scheduling']
 category: 'general'
 summary: '제한된 CPU 자원을 여러 프로세스에 효율적으로 분배하는 방법'
+related: ['process', 'context-switching', 'round-robin', 'time-slice', 'starvation']
 ---
 
 CPU 스케줄링은 운영체제가 CPU 시간을 여러 프로세스에 할당하는 방법입니다.

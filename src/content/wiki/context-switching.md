@@ -3,6 +3,7 @@ term: '컨텍스트 스위칭'
 aliases: ['Context Switching', '문맥 교환']
 category: 'general'
 summary: 'CPU가 현재 프로세스/스레드에서 다른 프로세스/스레드로 전환하는 과정'
+related: ['process', 'thread', 'pcb', 'cpu-scheduling']
 ---
 
 컨텍스트 스위칭(Context Switching)은 CPU가 실행 중인 프로세스나 스레드를 다른 것으로 교체하는 과정입니다.

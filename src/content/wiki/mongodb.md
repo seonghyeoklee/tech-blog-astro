@@ -3,6 +3,7 @@ term: 'MongoDB'
 aliases: ['몽고DB', 'Mongo']
 category: 'database'
 summary: 'Document 기반 NoSQL 데이터베이스. JSON 형태로 데이터를 저장하며 유연한 스키마와 수평 확장을 지원'
+related: [sharding, acid]
 ---
 
 ## 정의

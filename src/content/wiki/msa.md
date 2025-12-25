@@ -3,6 +3,7 @@ term: 'MSA'
 aliases: ['마이크로서비스', 'Microservices', '마이크로서비스 아키텍처']
 category: 'architecture'
 summary: '애플리케이션을 작은 독립 서비스들로 분리하는 아키텍처. 서비스별 독립 배포와 확장이 가능하지만 운영 복잡도가 높다.'
+related: ['monolithic', 'circuit-breaker', 'saga-pattern', 'cap']
 ---
 
 # MSA (Microservices Architecture)

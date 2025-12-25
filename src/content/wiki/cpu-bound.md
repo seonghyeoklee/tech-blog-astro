@@ -3,6 +3,7 @@ term: 'CPU 바운드'
 aliases: ['CPU Bound', 'CPU-bound', '연산 집약적']
 category: 'general'
 summary: 'CPU 계산이 많아서 CPU 성능에 의해 실행 속도가 결정되는 작업'
+related: [io-bound, thread-pool]
 ---
 
 CPU 바운드 작업은 CPU 계산이 대부분인 작업입니다.

@@ -3,6 +3,7 @@ term: '힙'
 aliases: ['Heap', 'Heap Memory']
 category: 'general'
 summary: '동적으로 할당되는 객체를 저장하는 메모리 영역'
+related: ['stack', 'gc']
 ---
 
 힙(Heap)은 런타임에 동적으로 할당되는 메모리 영역입니다. new 키워드로 생성한 객체가 이곳에 저장됩니다.

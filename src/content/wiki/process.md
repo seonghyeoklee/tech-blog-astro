@@ -3,6 +3,7 @@ term: '프로세스'
 aliases: ['Process']
 category: 'general'
 summary: '실행 중인 프로그램으로, 독립된 메모리 공간을 가지는 실행 단위'
+related: ['thread', 'pcb', 'context-switching', 'cpu-scheduling']
 ---
 
 프로세스(Process)는 디스크에 저장된 프로그램을 메모리에 올려서 실행한 상태입니다. 운영체제는 각 프로세스에게 독립된 메모리 공간을 할당합니다.

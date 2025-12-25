@@ -3,6 +3,7 @@ term: 'Undo Log'
 aliases: ['언두 로그']
 category: 'database'
 summary: '롤백과 MVCC 읽기를 위해 변경 전 데이터를 저장하는 로그'
+related: [redo-log, transaction, mvcc, acid]
 ---
 
 Undo Log는 트랜잭션이 데이터를 변경하기 전의 원본 값을 저장하는 로그입니다.

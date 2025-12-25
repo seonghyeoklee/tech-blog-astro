@@ -3,6 +3,7 @@ term: 'ACID'
 aliases: ['ACID 속성', 'ACID 원칙']
 category: 'database'
 summary: '트랜잭션이 보장해야 하는 4가지 속성 - 원자성, 일관성, 격리성, 지속성'
+related: ['transaction', 'isolation-level', 'redo-log', 'undo-log']
 ---
 
 ACID는 데이터베이스 트랜잭션이 안전하게 수행되기 위해 보장해야 하는 4가지 속성입니다.

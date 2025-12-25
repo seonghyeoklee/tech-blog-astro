@@ -3,6 +3,7 @@ term: 'Lost Update'
 aliases: ['갱신 손실', '업데이트 손실']
 category: 'database'
 summary: '두 트랜잭션이 동시에 같은 데이터를 수정하여 하나의 변경이 사라지는 현상'
+related: [race-condition, optimistic-lock, pessimistic-lock, transaction]
 ---
 
 Lost Update는 두 트랜잭션이 동시에 같은 데이터를 읽고 수정할 때, 먼저 커밋한 변경이 덮어씌워지는 문제입니다.

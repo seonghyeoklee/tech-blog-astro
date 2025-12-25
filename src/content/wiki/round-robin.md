@@ -3,6 +3,7 @@ term: 'Round Robin'
 aliases: ['라운드 로빈', 'RR 스케줄링']
 category: 'general'
 summary: '각 프로세스에 동일한 시간(타임 슬라이스)을 할당하는 공평한 스케줄링 방식'
+related: [dns, health-check]
 ---
 
 Round Robin은 가장 널리 사용되는 CPU 스케줄링 알고리즘입니다.

@@ -3,6 +3,7 @@ term: 'Deadlock'
 aliases: ['데드락', '교착 상태']
 category: 'database'
 summary: '두 개 이상의 트랜잭션이 서로의 락을 기다리며 영원히 진행되지 않는 상태'
+related: ['transaction', 'gap-lock', 'pessimistic-lock', 'race-condition']
 ---
 
 데드락은 두 트랜잭션이 서로 상대방이 가진 락을 기다리면서 무한 대기하는 상태입니다.

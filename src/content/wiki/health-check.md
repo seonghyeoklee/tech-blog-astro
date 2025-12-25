@@ -3,6 +3,7 @@ term: 'Health Check'
 aliases: ['헬스체크', '상태 검사']
 category: 'infra'
 summary: '서버나 서비스가 정상 동작하는지 주기적으로 확인하는 메커니즘'
+related: [dns, round-robin, ttl]
 ---
 
 Health Check는 로드밸런서나 오케스트레이터가 서버 상태를 확인하는 방법입니다.

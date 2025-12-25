@@ -3,6 +3,7 @@ term: 'Load Balancer'
 aliases: ['로드밸런서', 'LB', '부하분산기']
 category: 'infra'
 summary: '여러 서버로 트래픽을 분산시키는 네트워크 장비 또는 소프트웨어'
+related: ['health-check', 'dns', 'round-robin']
 ---
 
 로드밸런서는 들어오는 트래픽을 여러 서버에 분산하여 부하를 나누고 가용성을 높입니다.

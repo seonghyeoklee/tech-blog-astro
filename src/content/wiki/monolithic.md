@@ -3,6 +3,7 @@ term: '모놀리식 아키텍처'
 aliases: ['Monolithic', 'monolith', '모놀리스']
 category: 'architecture'
 summary: '모든 기능이 하나의 애플리케이션으로 통합된 아키텍처. 개발과 배포가 단순하지만 규모가 커지면 확장성에 한계가 있다.'
+related: ['msa']
 ---
 
 # 모놀리식 아키텍처

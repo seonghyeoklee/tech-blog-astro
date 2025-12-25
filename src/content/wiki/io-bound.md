@@ -3,6 +3,7 @@ term: 'I/O 바운드'
 aliases: ['IO Bound', 'I/O-bound', 'IO-bound']
 category: 'general'
 summary: '디스크 읽기, 네트워크 요청 등 I/O 대기가 많아서 I/O 성능에 의해 실행 속도가 결정되는 작업'
+related: [cpu-bound, thread-pool]
 ---
 
 I/O 바운드 작업은 I/O 대기가 대부분인 작업입니다.

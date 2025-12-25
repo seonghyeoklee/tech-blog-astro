@@ -3,6 +3,7 @@ term: 'MVCC'
 aliases: ['Multi-Version Concurrency Control', '다중 버전 동시성 제어']
 category: 'database'
 summary: '락 없이 읽기 일관성을 제공하는 동시성 제어 기법'
+related: ['isolation-level', 'undo-log', 'innodb']
 ---
 
 MVCC(Multi-Version Concurrency Control)는 데이터를 여러 버전으로 관리하여 읽기 작업과 쓰기 작업이 서로 차단하지 않도록 하는 기법입니다.

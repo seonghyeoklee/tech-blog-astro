@@ -3,6 +3,7 @@ term: 'B+Tree'
 aliases: ['B+ 트리', 'B+트리']
 category: 'database'
 summary: '데이터베이스 인덱스에 사용되는 균형 트리 자료구조'
+related: [index, clustered-index, cardinality]
 ---
 
 B+Tree는 데이터베이스 인덱스에서 가장 많이 사용되는 자료구조입니다. MySQL InnoDB의 인덱스는 B+Tree로 구현되어 있습니다.

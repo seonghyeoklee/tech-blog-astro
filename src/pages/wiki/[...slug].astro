@@ -11,11 +11,11 @@ export async function getStaticPaths() {
 	const wiki = await getCollection('wiki');
 	return wiki.map((entry) => ({
 		params: { slug: entry.id },
-		props: entry,
+		props: { entry, allWiki: wiki },
 	}));
 }
 
-const entry = Astro.props;
+const { entry, allWiki } = Astro.props;
 const { Content } = await render(entry);
 
 const categoryNames: Record<string, string> = {
@@ -26,9 +26,27 @@ const categoryNames: Record<string, string> = {
 	infra: 'Infra',
 	general: 'General',
 };
+
+// 관련 위키 가져오기
+const relatedWikis = entry.data.related
+	? allWiki.filter((w: any) => entry.data.related.includes(w.id))
+	: [];
+
+// 이 위키를 참조하는 다른 위키들
+const referencingWikis = allWiki.filter((w: any) =>
+	w.data.related?.includes(entry.id) && w.id !== entry.id
+);
+
+// 합쳐서 중복 제거
+const allRelated = [...relatedWikis];
+referencingWikis.forEach((w: any) => {
+	if (!allRelated.some((r: any) => r.id === w.id)) {
+		allRelated.push(w);
+	}
+});
 ---
 
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 	<head>
 		<ViewTransitions />
 		<BaseHead title={`${entry.data.term} - Wiki - ${SITE_TITLE}`} description={entry.data.summary} />
@@ -118,6 +136,47 @@ const categoryNames: Record<string, string> = {
 			.content th {
 				background: rgb(var(--gray-light), 0.3);
 			}
+			.related-wikis {
+				margin-top: 3em;
+				padding-top: 2em;
+				border-top: 1px solid rgb(var(--gray-light));
+			}
+			.related-wikis h2 {
+				font-size: 1.2em;
+				margin-bottom: 1em;
+				color: rgb(var(--gray-dark));
+			}
+			.related-list {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 0.75em;
+			}
+			.related-item {
+				display: inline-flex;
+				align-items: center;
+				gap: 0.5em;
+				padding: 0.5em 1em;
+				background: var(--card-bg);
+				border: 1px solid rgb(var(--gray-light));
+				border-radius: 20px;
+				text-decoration: none;
+				transition: all 0.2s;
+			}
+			.related-item:hover {
+				border-color: var(--accent);
+				background: rgb(var(--accent-rgb), 0.05);
+			}
+			.related-term {
+				color: rgb(var(--gray-dark));
+				font-weight: 500;
+			}
+			.related-category {
+				font-size: 0.75em;
+				color: rgb(var(--gray));
+				background: rgb(var(--gray-light), 0.5);
+				padding: 0.2em 0.5em;
+				border-radius: 4px;
+			}
 		</style>
 	</head>
 	<body>
@@ -146,6 +205,20 @@ const categoryNames: Record<string, string> = {
 			<article class="content">
 				<Content />
 			</article>
+
+			{allRelated.length > 0 && (
+				<section class="related-wikis">
+					<h2>연결된 개념</h2>
+					<div class="related-list">
+						{allRelated.map((wiki: any) => (
+							<a href={`/wiki/${wiki.id}`} class="related-item">
+								<span class="related-term">{wiki.data.term}</span>
+								<span class="related-category">{categoryNames[wiki.data.category]}</span>
+							</a>
+						))}
+					</div>
+				</section>
+			)}
 		</main>
 		<Footer />
 		<Analytics />

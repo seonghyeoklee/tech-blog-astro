@@ -3,6 +3,7 @@ term: 'InnoDB'
 aliases: ['MySQL InnoDB']
 category: 'database'
 summary: 'MySQL의 기본 스토리지 엔진으로 트랜잭션과 MVCC를 지원'
+related: [clustered-index, mvcc, redo-log, undo-log]
 ---
 
 InnoDB는 MySQL의 기본 스토리지 엔진입니다. 트랜잭션, 외래 키, MVCC를 지원하며 ACID를 완벽히 보장합니다.

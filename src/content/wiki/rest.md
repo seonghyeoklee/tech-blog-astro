@@ -3,6 +3,7 @@ term: 'REST'
 aliases: ['RESTful', 'REST API', 'Representational State Transfer']
 category: 'architecture'
 summary: 'HTTP를 기반으로 리소스를 표현하고 조작하는 아키텍처 스타일'
+related: [tls, base]
 ---
 
 REST는 HTTP 프로토콜을 활용하여 리소스를 CRUD하는 아키텍처 스타일입니다.

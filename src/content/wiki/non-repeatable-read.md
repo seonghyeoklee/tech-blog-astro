@@ -3,6 +3,7 @@ term: 'Non-Repeatable Read'
 aliases: ['반복 불가능한 읽기', 'Fuzzy Read']
 category: 'database'
 summary: '같은 트랜잭션 내에서 같은 데이터를 두 번 읽었을 때 결과가 다른 현상'
+related: [phantom-read, isolation-level, transaction, mvcc]
 ---
 
 Non-Repeatable Read는 한 트랜잭션 내에서 같은 데이터를 두 번 읽었을 때, 그 사이에 다른 트랜잭션이 해당 데이터를 수정하여 결과가 달라지는 현상입니다.

@@ -3,6 +3,7 @@ term: '스레드'
 aliases: ['Thread', '쓰레드']
 category: 'general'
 summary: '프로세스 내에서 메모리를 공유하며 실행되는 흐름의 단위'
+related: ['process', 'thread-pool', 'race-condition', 'context-switching']
 ---
 
 스레드(Thread)는 프로세스 내에서 실행되는 흐름의 단위입니다. 하나의 프로세스는 최소 하나의 스레드(메인 스레드)를 가집니다.

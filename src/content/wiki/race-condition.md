@@ -3,6 +3,7 @@ term: 'Race Condition'
 aliases: ['레이스 컨디션', '경쟁 상태', '경쟁 조건']
 category: 'general'
 summary: '여러 스레드가 공유 자원에 동시 접근할 때 실행 순서에 따라 결과가 달라지는 현상'
+related: [optimistic-lock, pessimistic-lock, deadlock, lost-update]
 ---
 
 Race Condition은 두 개 이상의 스레드가 공유 자원에 동시에 접근하고, 그 접근 순서에 따라 결과가 달라지는 상황입니다.

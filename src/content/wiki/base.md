@@ -3,6 +3,7 @@ term: 'BASE'
 aliases: ['BASE 모델', 'Basically Available']
 category: 'database'
 summary: 'NoSQL의 일관성 모델. ACID 대신 가용성과 확장성을 우선시하며 최종 일관성을 보장'
+related: [acid, cap, eventual-consistency]
 ---
 
 ## 정의

@@ -3,6 +3,7 @@ term: 'HTTPS'
 aliases: ['HTTP Secure', 'HTTP over TLS']
 category: 'infra'
 summary: 'TLS로 암호화된 보안 HTTP 통신'
+related: ['http', 'tls']
 ---
 
 HTTPS는 HTTP에 TLS(Transport Layer Security) 암호화를 추가한 프로토콜입니다.

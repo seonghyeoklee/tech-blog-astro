@@ -3,6 +3,7 @@ term: 'TTL'
 aliases: ['Time To Live']
 category: 'infra'
 summary: '데이터나 패킷이 유효한 시간 또는 홉 수를 나타내는 값'
+related: [dns, redis, cache]
 ---
 
 TTL(Time To Live)은 데이터의 유효 기간을 나타냅니다. 분야에 따라 의미가 다릅니다.

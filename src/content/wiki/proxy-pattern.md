@@ -3,6 +3,7 @@ term: 'Proxy Pattern'
 aliases: ['프록시 패턴', '프록시']
 category: 'spring'
 summary: '실제 객체를 대신하여 접근을 제어하거나 부가 기능을 추가하는 디자인 패턴'
+related: [aop, jpa, self-invocation]
 ---
 
 프록시 패턴은 실제 객체(Target) 대신 대리 객체(Proxy)를 통해 접근을 제어하는 구조적 디자인 패턴입니다.

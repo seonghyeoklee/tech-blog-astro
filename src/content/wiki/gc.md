@@ -3,6 +3,7 @@ term: 'GC'
 aliases: ['Garbage Collection', '가비지 컬렉션', '가비지 콜렉터']
 category: 'java'
 summary: '사용하지 않는 객체의 메모리를 자동으로 해제하는 메커니즘'
+related: ['heap', 'stack']
 ---
 
 GC(Garbage Collection)는 힙 메모리에서 더 이상 참조되지 않는 객체를 자동으로 정리하는 기능입니다.

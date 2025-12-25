@@ -3,6 +3,7 @@ term: 'Proxy'
 aliases: ['프록시', '프록시 패턴']
 category: 'architecture'
 summary: '실제 객체를 대신하여 접근을 제어하거나 부가 기능을 제공하는 대리 객체'
+related: ['aop', 'proxy-pattern', 'transactional']
 ---
 
 Proxy는 실제 객체를 감싸서 접근을 제어하거나 부가 기능을 추가하는 디자인 패턴입니다. 클라이언트는 프록시를 통해 실제 객체에 접근합니다.

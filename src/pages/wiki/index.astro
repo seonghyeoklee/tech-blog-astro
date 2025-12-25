@@ -6,9 +6,31 @@ import BaseHead from '../../components/BaseHead.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import StructuredData from '../../components/StructuredData.astro';
+import WikiGraph from '../../components/WikiGraph.astro';
 import { SITE_TITLE } from '../../consts';
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 const allWiki = await getCollection('wiki');
+
+// Manually read frontmatter for related field
+const wikiDir = 'src/content/wiki';
+const wikiWithRelated = allWiki.map(wiki => {
+	try {
+		const filePath = path.join(process.cwd(), wikiDir, `${wiki.id}.md`);
+		const content = fs.readFileSync(filePath, 'utf-8');
+		const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+		if (frontmatterMatch) {
+			const relatedMatch = frontmatterMatch[1].match(/related:\s*\[(.*?)\]/);
+			if (relatedMatch) {
+				const related = relatedMatch[1].split(',').map(s => s.trim().replace(/['"]/g, '')).filter(Boolean);
+				return { ...wiki, data: { ...wiki.data, related } };
+			}
+		}
+	} catch (e) {}
+	return { ...wiki, data: { ...wiki.data, related: [] } };
+});
 
 const categories = {
 	database: { name: 'Database', icon: '🗄️', items: [] as typeof allWiki },
@@ -26,9 +48,33 @@ allWiki.forEach(wiki => {
 Object.values(categories).forEach(cat => {
 	cat.items.sort((a, b) => a.data.term.localeCompare(b.data.term, 'ko'));
 });
+
+// 그래프 데이터 생성 (wikiWithRelated 사용)
+const graphNodes = wikiWithRelated.map(wiki => ({
+	id: wiki.id,
+	term: wiki.data.term,
+	category: wiki.data.category,
+	summary: wiki.data.summary,
+}));
+
+const graphLinks: { source: string; target: string }[] = [];
+wikiWithRelated.forEach(wiki => {
+	if (wiki.data.related && wiki.data.related.length > 0) {
+		wiki.data.related.forEach((relatedId: string) => {
+			// 중복 링크 방지
+			const exists = graphLinks.some(
+				link => (link.source === wiki.id && link.target === relatedId) ||
+				        (link.source === relatedId && link.target === wiki.id)
+			);
+			if (!exists && wikiWithRelated.some(w => w.id === relatedId)) {
+				graphLinks.push({ source: wiki.id, target: relatedId });
+			}
+		});
+	}
+});
 ---
 
-<html lang="ko">
+<html lang="ko" data-theme="dark">
 	<head>
 		<ViewTransitions />
 		<BaseHead title={`Wiki - ${SITE_TITLE}`} description="개발 용어 사전" />
@@ -45,12 +91,57 @@ Object.values(categories).forEach(cat => {
 				margin: auto;
 				padding: 2em 1em;
 			}
+			.wiki-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-start;
+				margin-bottom: 1.5em;
+				flex-wrap: wrap;
+				gap: 1em;
+			}
 			h1 {
-				margin-bottom: 0.5em;
+				margin-bottom: 0.25em;
 			}
 			.description {
 				color: rgb(var(--gray));
-				margin-bottom: 2em;
+				margin: 0;
+			}
+			.view-toggle {
+				display: flex;
+				gap: 4px;
+				background: rgb(var(--gray-light), 0.3);
+				padding: 4px;
+				border-radius: 8px;
+			}
+			.view-btn {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				width: 36px;
+				height: 36px;
+				border: none;
+				background: transparent;
+				border-radius: 6px;
+				cursor: pointer;
+				color: rgb(var(--gray));
+				transition: all 0.2s;
+			}
+			.view-btn:hover {
+				background: rgb(var(--gray-light), 0.5);
+			}
+			.view-btn.active {
+				background: var(--card-bg);
+				color: var(--accent);
+				box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+			}
+			.view-content.hidden {
+				display: none;
+			}
+			.graph-hint {
+				text-align: center;
+				color: rgb(var(--gray));
+				font-size: 0.9em;
+				margin-top: 0.5em;
 			}
 			.search-box {
 				width: 100%;
@@ -122,15 +213,50 @@ Object.values(categories).forEach(cat => {
 	<body>
 		<Header />
 		<main>
-			<h1>Wiki</h1>
-			<p class="description">개발 용어 사전입니다. 블로그 글에서 용어를 클릭하면 이곳으로 연결됩니다.</p>
+			<div class="wiki-header">
+				<div>
+					<h1>Wiki</h1>
+					<p class="description">개발 용어 사전입니다. 블로그 글에서 용어를 클릭하면 이곳으로 연결됩니다.</p>
+				</div>
+				<div class="view-toggle">
+					<button id="list-view-btn" class="view-btn active" title="목록 보기">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<line x1="8" y1="6" x2="21" y2="6"></line>
+							<line x1="8" y1="12" x2="21" y2="12"></line>
+							<line x1="8" y1="18" x2="21" y2="18"></line>
+							<line x1="3" y1="6" x2="3.01" y2="6"></line>
+							<line x1="3" y1="12" x2="3.01" y2="12"></line>
+							<line x1="3" y1="18" x2="3.01" y2="18"></line>
+						</svg>
+					</button>
+					<button id="graph-view-btn" class="view-btn" title="그래프 보기">
+						<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<circle cx="12" cy="12" r="3"></circle>
+							<circle cx="19" cy="5" r="2"></circle>
+							<circle cx="5" cy="19" r="2"></circle>
+							<circle cx="5" cy="5" r="2"></circle>
+							<circle cx="19" cy="19" r="2"></circle>
+							<line x1="14.5" y1="10" x2="17.5" y2="6.5"></line>
+							<line x1="9.5" y1="14" x2="6.5" y2="17.5"></line>
+							<line x1="9.5" y1="10" x2="6.5" y2="6.5"></line>
+							<line x1="14.5" y1="14" x2="17.5" y2="17.5"></line>
+						</svg>
+					</button>
+				</div>
+			</div>
 
-			<input
-				type="text"
-				class="search-box"
-				placeholder="용어 검색..."
-				id="wiki-search"
-			/>
+			<div id="graph-view" class="view-content hidden">
+				<WikiGraph nodes={graphNodes} links={graphLinks} />
+				<p class="graph-hint">노드를 드래그하거나 클릭하여 이동할 수 있습니다. 연결된 개념을 확인하세요!</p>
+							</div>
+
+			<div id="list-view" class="view-content">
+				<input
+					type="text"
+					class="search-box"
+					placeholder="용어 검색..."
+					id="wiki-search"
+				/>
 
 			{Object.entries(categories).map(([key, category]) => (
 				category.items.length > 0 && (
@@ -154,10 +280,42 @@ Object.values(categories).forEach(cat => {
 					</section>
 				)
 			))}
+			</div>
 		</main>
 		<Footer />
 
 		<script>
+			// 뷰 토글
+			const listViewBtn = document.getElementById('list-view-btn');
+			const graphViewBtn = document.getElementById('graph-view-btn');
+			const listView = document.getElementById('list-view');
+			const graphView = document.getElementById('graph-view');
+
+			function setView(view: 'list' | 'graph') {
+				if (view === 'list') {
+					listView?.classList.remove('hidden');
+					graphView?.classList.add('hidden');
+					listViewBtn?.classList.add('active');
+					graphViewBtn?.classList.remove('active');
+				} else {
+					listView?.classList.add('hidden');
+					graphView?.classList.remove('hidden');
+					listViewBtn?.classList.remove('active');
+					graphViewBtn?.classList.add('active');
+				}
+				localStorage.setItem('wiki-view', view);
+			}
+
+			listViewBtn?.addEventListener('click', () => setView('list'));
+			graphViewBtn?.addEventListener('click', () => setView('graph'));
+
+			// 저장된 뷰 복원
+			const savedView = localStorage.getItem('wiki-view') as 'list' | 'graph' | null;
+			if (savedView) {
+				setView(savedView);
+			}
+
+			// 검색
 			const searchInput = document.getElementById('wiki-search') as HTMLInputElement;
 			const wikiItems = document.querySelectorAll('.wiki-item');
 

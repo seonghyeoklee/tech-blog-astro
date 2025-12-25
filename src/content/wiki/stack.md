@@ -3,6 +3,7 @@ term: '스택'
 aliases: ['Stack', 'Call Stack', '호출 스택']
 category: 'general'
 summary: '함수 호출과 지역 변수를 관리하는 LIFO 구조의 메모리 영역'
+related: ['heap', 'gc', 'thread']
 ---
 
 스택(Stack)은 함수 호출 정보와 지역 변수를 저장하는 메모리 영역입니다. LIFO(Last In First Out) 구조로 동작합니다.

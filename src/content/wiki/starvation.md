@@ -3,6 +3,7 @@ term: '기아'
 aliases: ['Starvation', '기아 문제', '프로세스 기아']
 category: 'general'
 summary: '우선순위가 낮은 프로세스가 CPU를 할당받지 못해 무한정 대기하는 현상'
+related: [deadlock, race-condition, time-slice]
 ---
 
 기아(Starvation)는 특정 프로세스가 계속 CPU를 할당받지 못하는 문제입니다.

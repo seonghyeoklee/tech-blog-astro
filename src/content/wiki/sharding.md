@@ -3,6 +3,7 @@ term: 'Sharding'
 aliases: ['샤딩', '수평 분할', 'Horizontal Partitioning']
 category: 'database'
 summary: '데이터를 여러 서버에 분산 저장하는 수평 확장 기법. 각 서버(샤드)가 데이터의 일부를 담당'
+related: [redis, mongodb, replication]
 ---
 
 ## 정의

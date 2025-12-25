@@ -3,6 +3,7 @@ term: 'Phantom Read'
 aliases: ['팬텀 리드', '유령 읽기']
 category: 'database'
 summary: '같은 조건으로 조회했을 때 이전에 없던 새로운 행이 나타나는 현상'
+related: [non-repeatable-read, isolation-level, gap-lock, mvcc]
 ---
 
 Phantom Read는 한 트랜잭션 내에서 같은 조건으로 데이터를 조회했을 때, 다른 트랜잭션이 새로운 행을 INSERT하여 이전에 없던 행이 나타나는 현상입니다.

@@ -3,6 +3,7 @@ term: 'NoSQL'
 aliases: ['NoSQL DB', '비관계형 데이터베이스']
 category: 'database'
 summary: 'Not Only SQL. RDB의 고정 스키마와 JOIN을 벗어나 유연한 데이터 모델과 수평 확장을 지원하는 데이터베이스 유형'
+related: ['cap', 'base', 'mongodb', 'redis', 'sharding']
 ---
 
 ## 정의

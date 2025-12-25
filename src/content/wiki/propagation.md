@@ -3,6 +3,7 @@ term: 'Propagation'
 aliases: ['트랜잭션 전파', 'Transaction Propagation']
 category: 'spring'
 summary: '트랜잭션이 이미 존재할 때 새 트랜잭션을 어떻게 처리할지 결정하는 정책'
+related: ['transactional', 'transaction']
 ---
 
 Propagation은 트랜잭션이 진행 중일 때 새로운 트랜잭션 요청이 들어오면 어떻게 처리할지 결정하는 정책입니다.

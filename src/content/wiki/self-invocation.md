@@ -3,6 +3,7 @@ term: 'Self-Invocation'
 aliases: ['내부 호출', '자기 호출']
 category: 'spring'
 summary: '같은 클래스 내에서 메서드를 호출하여 AOP 프록시를 거치지 않는 현상'
+related: [aop, proxy-pattern, transactional]
 ---
 
 Self-Invocation은 같은 클래스 내에서 this로 메서드를 호출하는 것을 말합니다. 이 경우 프록시를 거치지 않아 AOP가 적용되지 않습니다.

@@ -1,0 +1,652 @@
+---
+interface WikiNode {
+  id: string;
+  term: string;
+  category: string;
+  summary: string;
+}
+
+interface WikiLink {
+  source: string;
+  target: string;
+}
+
+interface Props {
+  nodes: WikiNode[];
+  links: WikiLink[];
+  currentWikiId?: string;
+}
+
+const { nodes, links, currentWikiId } = Astro.props;
+
+const categoryColors: Record<string, string> = {
+  database: '#3b82f6',
+  java: '#f59e0b',
+  spring: '#22c55e',
+  architecture: '#8b5cf6',
+  infra: '#06b6d4',
+  general: '#6b7280',
+};
+---
+
+<div class="wiki-graph-container">
+  <div class="graph-bg">
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+    <div class="mesh-overlay"></div>
+  </div>
+  <div class="particles" id="particles"></div>
+  <div class="graph-controls">
+    <button id="zoom-in" title="확대">+</button>
+    <button id="zoom-out" title="축소">−</button>
+    <button id="zoom-reset" title="초기화">⟲</button>
+  </div>
+  <div class="graph-legend">
+    <span class="legend-item legend-hub">
+      <svg width="14" height="14" viewBox="-10 -10 20 20">
+        <polygon points="8,0 4,7 -4,7 -8,0 -4,-7 4,-7" fill="#6b7280" stroke="#fff" stroke-width="1.5"/>
+      </svg>
+      Hub
+    </span>
+    {Object.entries(categoryColors).map(([category, color]) => (
+      <span class="legend-item">
+        <span class="legend-dot" style={`background: ${color}`}></span>
+        {category}
+      </span>
+    ))}
+  </div>
+  <svg id="wiki-graph"></svg>
+  <div id="tooltip" class="graph-tooltip"></div>
+</div>
+
+<script
+  id="graph-data"
+  type="application/json"
+  set:html={JSON.stringify({ nodes, links, currentWikiId, categoryColors })}
+/>
+
+<script>
+  import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
+
+  function initGraph() {
+    const dataEl = document.getElementById('graph-data');
+    if (!dataEl) return;
+
+    const { nodes, links, currentWikiId, categoryColors } = JSON.parse(dataEl.textContent || '{}');
+
+    const container = document.querySelector('.wiki-graph-container');
+    if (!container) return;
+
+    const svg = d3.select('#wiki-graph');
+    const tooltip = d3.select('#tooltip');
+
+    // 기존 내용 제거 (중복 방지)
+    svg.selectAll('*').remove();
+
+    const width = container.clientWidth;
+    const height = Math.min(800, window.innerHeight * 0.7);
+
+    svg.attr('width', width).attr('height', height);
+
+    // 줌 기능
+    const g = svg.append('g');
+    const zoom = d3.zoom()
+      .scaleExtent([0.3, 3])
+      .on('zoom', (event: any) => {
+        g.attr('transform', event.transform);
+      });
+
+    svg.call(zoom as any);
+
+    // 줌 버튼
+    d3.select('#zoom-in').on('click', () => {
+      svg.transition().call(zoom.scaleBy as any, 1.3);
+    });
+    d3.select('#zoom-out').on('click', () => {
+      svg.transition().call(zoom.scaleBy as any, 0.7);
+    });
+    d3.select('#zoom-reset').on('click', () => {
+      svg.transition().call(zoom.transform as any, d3.zoomIdentity);
+    });
+
+    // 노드별 연결 수 계산
+    const nodeDegree: Record<string, number> = {};
+    nodes.forEach((n: any) => nodeDegree[n.id] = 0);
+    links.forEach((l: any) => {
+      const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+      const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+      nodeDegree[sourceId] = (nodeDegree[sourceId] || 0) + 1;
+      nodeDegree[targetId] = (nodeDegree[targetId] || 0) + 1;
+    });
+
+    // 허브 노드 판별 (연결 3개 이상)
+    const hubThreshold = 3;
+    nodes.forEach((d: any) => {
+      d.degree = nodeDegree[d.id] || 0;
+      d.isHub = d.degree >= hubThreshold;
+    });
+
+    // 노드 초기 위치 랜덤 설정
+    nodes.forEach((d: any) => {
+      d.x = width / 2 + (Math.random() - 0.5) * 200;
+      d.y = height / 2 + (Math.random() - 0.5) * 200;
+    });
+
+    // Force 시뮬레이션
+    const simulation = d3.forceSimulation(nodes)
+      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(120).strength(0.5))
+      .force('charge', d3.forceManyBody().strength(-400))
+      .force('center', d3.forceCenter(width / 2, height / 2))
+      .force('collision', d3.forceCollide().radius(50))
+      .force('x', d3.forceX(width / 2).strength(0.05))
+      .force('y', d3.forceY(height / 2).strength(0.05))
+      .alphaDecay(0.02)
+      .velocityDecay(0.3);
+
+    // 링크 그리기
+    const link = g.append('g')
+      .attr('class', 'links')
+      .selectAll('line')
+      .data(links)
+      .join('line')
+      .attr('stroke', 'url(#link-gradient)')
+      .attr('stroke-width', 2)
+      .attr('stroke-opacity', 0.5)
+      .style('filter', 'drop-shadow(0 0 2px rgba(100, 150, 255, 0.3))');
+
+    // 링크 그라데이션 정의
+    const defs = svg.append('defs');
+    const gradient = defs.append('linearGradient')
+      .attr('id', 'link-gradient')
+      .attr('gradientUnits', 'userSpaceOnUse');
+    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#60a5fa');
+    gradient.append('stop').attr('offset', '50%').attr('stop-color', '#a78bfa');
+    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#60a5fa');
+
+    // 링크 펄스 애니메이션
+    function animateLinks() {
+      link.transition()
+        .duration(3000)
+        .attr('stroke-opacity', 0.7)
+        .transition()
+        .duration(3000)
+        .attr('stroke-opacity', 0.4)
+        .on('end', animateLinks);
+    }
+    animateLinks();
+
+    // 노드 그룹
+    const node = g.append('g')
+      .attr('class', 'nodes')
+      .selectAll('g')
+      .data(nodes)
+      .join('g')
+      .attr('class', 'node')
+      .call(d3.drag()
+        .on('start', (event: any, d: any) => {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        })
+        .on('drag', (event: any, d: any) => {
+          d.fx = event.x;
+          d.fy = event.y;
+        })
+        .on('end', (event: any, d: any) => {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }) as any);
+
+    // 육각형 path 생성 함수
+    const hexagonPath = (size: number) => {
+      const angles = [0, 60, 120, 180, 240, 300].map(a => a * Math.PI / 180);
+      return angles.map((angle, i) => {
+        const x = size * Math.cos(angle);
+        const y = size * Math.sin(angle);
+        return (i === 0 ? 'M' : 'L') + x + ',' + y;
+      }).join('') + 'Z';
+    };
+
+    // 노드 모양 (허브: 육각형, 일반: 원)
+    node.each(function(d: any) {
+      const el = d3.select(this);
+      const size = d.id === currentWikiId ? 22 : (d.isHub ? 20 : 15);
+      const color = categoryColors[d.category] || '#6b7280';
+      const strokeColor = d.id === currentWikiId ? '#1f2937' : '#fff';
+      const strokeWidth = d.id === currentWikiId ? 3 : 2;
+
+      if (d.isHub) {
+        // 허브 노드: 육각형 + 글로우
+        el.append('path')
+          .attr('class', 'hub-node')
+          .attr('d', hexagonPath(size))
+          .attr('fill', color)
+          .attr('stroke', strokeColor)
+          .attr('stroke-width', strokeWidth)
+          .style('cursor', 'pointer')
+          .style('filter', `drop-shadow(0 0 8px ${color}) drop-shadow(0 2px 4px rgba(0,0,0,0.3))`);
+      } else {
+        // 일반 노드: 원
+        el.append('circle')
+          .attr('r', size)
+          .attr('fill', color)
+          .attr('stroke', strokeColor)
+          .attr('stroke-width', strokeWidth)
+          .style('cursor', 'pointer');
+      }
+    });
+
+    // 노드 텍스트
+    node.append('text')
+      .text((d: any) => d.term.length > 10 ? d.term.slice(0, 10) + '...' : d.term)
+      .attr('x', 0)
+      .attr('y', (d: any) => d.isHub ? 35 : 30)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', (d: any) => d.isHub ? '12px' : '11px')
+      .attr('fill', 'rgba(255, 255, 255, 0.9)')
+      .attr('font-weight', (d: any) => (d.id === currentWikiId || d.isHub) ? '600' : '500')
+      .style('text-shadow', '0 1px 3px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.3)');
+
+    // 호버 효과
+    node.on('mouseover', (event: any, d: any) => {
+      tooltip
+        .style('opacity', 1)
+        .html(`<strong>${d.term}</strong><br/><span>${d.summary}</span>`)
+        .style('left', (event.pageX + 10) + 'px')
+        .style('top', (event.pageY - 10) + 'px');
+
+      // 연결된 노드 강조
+      const connectedIds = new Set<string>();
+      links.forEach((l: any) => {
+        if (l.source.id === d.id || l.source === d.id) connectedIds.add(typeof l.target === 'object' ? l.target.id : l.target);
+        if (l.target.id === d.id || l.target === d.id) connectedIds.add(typeof l.source === 'object' ? l.source.id : l.source);
+      });
+      connectedIds.add(d.id);
+
+      node.style('opacity', (n: any) => connectedIds.has(n.id) ? 1 : 0.2);
+      link.style('opacity', (l: any) => {
+        const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
+        const targetId = typeof l.target === 'object' ? l.target.id : l.target;
+        return sourceId === d.id || targetId === d.id ? 1 : 0.1;
+      });
+    })
+    .on('mouseout', () => {
+      tooltip.style('opacity', 0);
+      node.style('opacity', 1);
+      link.style('opacity', 0.6);
+    })
+    .on('click', (_: any, d: any) => {
+      window.location.href = `/wiki/${d.id}`;
+    });
+
+    // 시뮬레이션 업데이트
+    simulation.on('tick', () => {
+      link
+        .attr('x1', (d: any) => d.source.x)
+        .attr('y1', (d: any) => d.source.y)
+        .attr('x2', (d: any) => d.target.x)
+        .attr('y2', (d: any) => d.target.y);
+
+      node.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
+    });
+
+    // 시뮬레이션이 멈추지 않고 계속 살아있도록 설정
+    simulation.on('end', () => {
+      // 시뮬레이션이 끝나면 약하게 다시 시작
+      setTimeout(() => {
+        simulation.alpha(0.03).restart();
+      }, 2000);
+    });
+
+    // 시뮬레이션 시작 (처음에 활발하게 움직이도록)
+    simulation.alpha(1).restart();
+
+    // 주기적으로 랜덤한 노드에 작은 힘 가하기 (살아있는 느낌)
+    setInterval(() => {
+      const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+      if (randomNode && !randomNode.fx) {
+        randomNode.vx += (Math.random() - 0.5) * 2;
+        randomNode.vy += (Math.random() - 0.5) * 2;
+        simulation.alpha(0.1).restart();
+      }
+    }, 3000);
+
+    // 허브 노드 펄스 애니메이션
+    node.selectAll('path').each(function() {
+      const el = d3.select(this);
+      function pulse() {
+        el.transition()
+          .duration(2000)
+          .attr('transform', 'scale(1.1)')
+          .transition()
+          .duration(2000)
+          .attr('transform', 'scale(1)')
+          .on('end', pulse);
+      }
+      pulse();
+    });
+
+    // 일반 노드 부드러운 숨쉬기 애니메이션
+    node.selectAll('circle').each(function(d: any) {
+      const el = d3.select(this);
+      const baseR = d.id === currentWikiId ? 22 : 15;
+      const delay = Math.random() * 2000;
+
+      function breathe() {
+        el.transition()
+          .delay(delay)
+          .duration(2500 + Math.random() * 1000)
+          .attr('r', baseR * 1.08)
+          .transition()
+          .duration(2500 + Math.random() * 1000)
+          .attr('r', baseR)
+          .on('end', breathe);
+      }
+      breathe();
+    });
+
+    // 그래프가 보일 때 시뮬레이션 재시작 (hidden에서 visible로 전환 시)
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          const graphView = document.getElementById('graph-view');
+          if (graphView && !graphView.classList.contains('hidden')) {
+            simulation.alpha(0.5).restart();
+          }
+        }
+      });
+    });
+
+    const graphView = document.getElementById('graph-view');
+    if (graphView) {
+      observer.observe(graphView, { attributes: true });
+    }
+
+    // 파티클 생성
+    const particlesContainer = document.getElementById('particles');
+    if (particlesContainer) {
+      particlesContainer.innerHTML = '';
+      for (let i = 0; i < 30; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.top = Math.random() * 100 + '%';
+        particle.style.animationDelay = Math.random() * 4 + 's';
+        particle.style.animationDuration = (3 + Math.random() * 3) + 's';
+        particlesContainer.appendChild(particle);
+      }
+    }
+  }
+
+  // 초기화
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGraph);
+  } else {
+    initGraph();
+  }
+
+  // View Transitions 대응
+  document.addEventListener('astro:page-load', initGraph);
+</script>
+
+<style>
+  .wiki-graph-container {
+    position: relative;
+    width: 100%;
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #0f0f1a 100%);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* 배경 오브 애니메이션 */
+  .graph-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    z-index: 0;
+  }
+
+  .gradient-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: float 20s ease-in-out infinite;
+  }
+
+  .orb-1 {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+    top: -100px;
+    left: -100px;
+    animation-delay: 0s;
+  }
+
+  .orb-2 {
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%);
+    top: 50%;
+    right: -80px;
+    animation-delay: -7s;
+  }
+
+  .orb-3 {
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.3) 0%, transparent 70%);
+    bottom: -50px;
+    left: 30%;
+    animation-delay: -14s;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    25% {
+      transform: translate(30px, -30px) scale(1.05);
+    }
+    50% {
+      transform: translate(-20px, 20px) scale(0.95);
+    }
+    75% {
+      transform: translate(20px, 10px) scale(1.02);
+    }
+  }
+
+  /* 메쉬 오버레이 */
+  .mesh-overlay {
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* 파티클 */
+  .particles {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  :global(.particle) {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 50%;
+    animation: sparkle 4s ease-in-out infinite;
+  }
+
+  @keyframes sparkle {
+    0%, 100% {
+      opacity: 0;
+      transform: scale(0) translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1) translateY(-20px);
+    }
+  }
+
+  :global(.dark) .wiki-graph-container {
+    background: linear-gradient(135deg, #0a0a12 0%, #12121f 50%, #0a0a12 100%);
+  }
+
+  #wiki-graph {
+    display: block;
+    width: 100%;
+    height: 70vh;
+    min-height: 500px;
+    max-height: 800px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .graph-controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    gap: 6px;
+    z-index: 10;
+  }
+
+  .graph-controls button {
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .graph-controls button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .graph-legend {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  :global(.dark) .graph-legend {
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .legend-hub {
+    padding-right: 10px;
+    margin-right: 6px;
+    border-right: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .legend-hub svg {
+    margin-right: 2px;
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+
+  .graph-tooltip {
+    position: absolute;
+    padding: 14px 18px;
+    background: rgba(15, 15, 30, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #fff;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    max-width: 280px;
+    z-index: 100;
+    line-height: 1.6;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .graph-tooltip strong {
+    display: block;
+    margin-bottom: 6px;
+    color: #a78bfa;
+    font-size: 14px;
+    text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
+  }
+
+  .graph-tooltip span {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  :global(.nodes .node) {
+    cursor: pointer;
+  }
+
+  :global(.nodes .node:hover circle) {
+    filter: brightness(1.1);
+  }
+
+  :global(.dark) .graph-controls button {
+    background: #1e293b;
+    border-color: #475569;
+    color: #e2e8f0;
+  }
+
+  :global(.dark) .graph-controls button:hover {
+    background: #334155;
+  }
+
+  :global(.dark) #wiki-graph text {
+    fill: #e2e8f0;
+  }
+</style>

@@ -3,6 +3,7 @@ term: 'Dirty Read'
 aliases: ['더티 리드']
 category: 'database'
 summary: '커밋되지 않은 다른 트랜잭션의 데이터를 읽는 현상'
+related: ['isolation-level', 'non-repeatable-read', 'phantom-read']
 ---
 
 Dirty Read는 한 트랜잭션이 아직 커밋되지 않은 다른 트랜잭션의 변경 데이터를 읽는 현상입니다.

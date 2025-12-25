@@ -3,6 +3,7 @@ term: 'PlatformTransactionManager'
 aliases: ['TransactionManager', '트랜잭션 매니저']
 category: 'spring'
 summary: 'Spring의 트랜잭션 추상화 인터페이스'
+related: [transaction, jpa, aop]
 ---
 
 PlatformTransactionManager는 Spring에서 트랜잭션을 관리하는 핵심 인터페이스입니다. 다양한 트랜잭션 기술을 동일한 방식으로 사용할 수 있게 추상화합니다.

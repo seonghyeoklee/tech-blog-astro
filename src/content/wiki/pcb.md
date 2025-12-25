@@ -3,6 +3,7 @@ term: 'PCB'
 aliases: ['Process Control Block', '프로세스 제어 블록']
 category: 'general'
 summary: '운영체제가 프로세스를 관리하기 위해 유지하는 자료구조'
+related: ['process', 'context-switching']
 ---
 
 PCB(Process Control Block)는 운영체제가 각 프로세스에 대한 정보를 저장하는 자료구조입니다.

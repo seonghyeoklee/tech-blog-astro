@@ -3,6 +3,7 @@ term: 'Gap Lock'
 aliases: ['갭 락', 'Next-Key Lock']
 category: 'database'
 summary: '인덱스 레코드 사이의 간격을 잠그는 InnoDB의 락 메커니즘'
+related: [transaction, mvcc, isolation-level, innodb]
 ---
 
 Gap Lock은 MySQL InnoDB에서 인덱스 레코드 사이의 "간격"을 잠그는 락입니다. 다른 트랜잭션이 해당 간격에 새로운 행을 INSERT하는 것을 방지합니다.

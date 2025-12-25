@@ -3,6 +3,7 @@ term: '@Transactional'
 aliases: ['Transactional', '트랜잭셔널']
 category: 'spring'
 summary: 'Spring에서 선언적 트랜잭션 관리를 위한 어노테이션'
+related: ['aop', 'proxy', 'propagation', 'self-invocation', 'platform-transaction-manager']
 ---
 
 @Transactional은 Spring에서 메서드나 클래스에 트랜잭션 경계를 선언하는 어노테이션입니다. AOP를 통해 트랜잭션 시작, 커밋, 롤백을 자동으로 처리합니다.

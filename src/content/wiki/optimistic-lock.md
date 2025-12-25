@@ -3,6 +3,7 @@ term: 'Optimistic Lock'
 aliases: ['낙관적 락', '낙관적 잠금']
 category: 'database'
 summary: '충돌이 적다고 가정하고 수정 시점에 버전을 체크하는 동시성 제어 방식'
+related: [pessimistic-lock, transaction, race-condition, lost-update]
 ---
 
 낙관적 락은 "충돌이 거의 없을 것"이라고 가정하고, 수정 시점에 버전 충돌을 감지하는 방식입니다.

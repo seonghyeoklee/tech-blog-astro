@@ -3,6 +3,7 @@ term: '격리 수준'
 aliases: ['Isolation Level', '트랜잭션 격리 수준']
 category: 'database'
 summary: '동시 실행 트랜잭션 간 데이터 가시성을 결정하는 설정'
+related: ['acid', 'transaction', 'dirty-read', 'non-repeatable-read', 'phantom-read', 'mvcc']
 ---
 
 격리 수준(Isolation Level)은 동시에 실행되는 트랜잭션들이 서로의 변경 사항을 어느 정도까지 볼 수 있는지 정의합니다.

@@ -3,6 +3,7 @@ term: '트랜잭션'
 aliases: ['Transaction', 'DB 트랜잭션']
 category: 'database'
 summary: '여러 작업을 하나의 논리적 단위로 묶어 원자성을 보장하는 작업 단위'
+related: ['acid', 'isolation-level', 'redo-log', 'undo-log', 'deadlock']
 ---
 
 트랜잭션(Transaction)은 데이터베이스에서 하나의 논리적 작업 단위를 의미합니다. 여러 개의 SQL 문을 하나로 묶어서 전부 성공하거나 전부 실패하도록 보장합니다.

@@ -3,6 +3,7 @@ term: '타임 슬라이스'
 aliases: ['Time Slice', 'Quantum', '퀀텀', '시간 할당량']
 category: 'general'
 summary: 'Round Robin 스케줄링에서 각 프로세스에 할당되는 CPU 사용 시간'
+related: [starvation, cpu-bound]
 ---
 
 타임 슬라이스는 운영체제가 각 프로세스에 할당하는 CPU 시간입니다.
