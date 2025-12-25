@@ -92,15 +92,15 @@ const resources = [
 			url={Astro.url}
 		/>
 		<style>
-			/* Wiki Graph Section */
+			/* Wiki Graph Section - Fullscreen Style */
 			.wiki-graph-section {
-				width: 100%;
-				max-width: 100%;
-				margin: 0;
-				padding: 3em 2em;
+				width: 100vw;
+				margin-left: calc(-50vw + 50%);
+				padding: 0;
 				background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0f0f1a 100%);
 				position: relative;
 				overflow: hidden;
+				min-height: calc(100vh - 60px);
 			}
 			.wiki-graph-section::before {
 				content: '';
@@ -122,7 +122,7 @@ const resources = [
 			}
 			.wiki-graph-header {
 				text-align: center;
-				margin-bottom: 1.5em;
+				padding: 2em 2em 1em;
 				position: relative;
 				z-index: 1;
 			}
