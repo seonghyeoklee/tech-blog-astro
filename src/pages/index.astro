@@ -79,13 +79,8 @@ wikiWithRelated.forEach(wiki => {
 				z-index: 100;
 				pointer-events: none;
 			}
-			.star {
-				position: absolute;
-				background: #fff;
-				border-radius: 50%;
-				animation: twinkle var(--duration, 3s) ease-in-out infinite;
-				animation-delay: var(--delay, 0s);
-			}
+		</style>
+		<style is:global>
 			@keyframes twinkle {
 				0%, 100% { opacity: var(--min-opacity, 0.3); transform: scale(1); }
 				50% { opacity: 1; transform: scale(1.2); }
@@ -107,15 +102,22 @@ wikiWithRelated.forEach(wiki => {
 				const count = 150;
 				for (let i = 0; i < count; i++) {
 					const star = document.createElement('div');
-					star.className = 'star';
 					const size = Math.random() * 2 + 1;
-					star.style.width = size + 'px';
-					star.style.height = size + 'px';
-					star.style.left = Math.random() * 100 + '%';
-					star.style.top = Math.random() * 100 + '%';
-					star.style.setProperty('--duration', (2 + Math.random() * 4) + 's');
-					star.style.setProperty('--delay', Math.random() * 5 + 's');
-					star.style.setProperty('--min-opacity', (0.2 + Math.random() * 0.3).toString());
+					const duration = (2 + Math.random() * 4) + 's';
+					const delay = Math.random() * 5 + 's';
+					const minOpacity = 0.2 + Math.random() * 0.3;
+					star.style.cssText = `
+						position: absolute;
+						background: #fff;
+						border-radius: 50%;
+						width: ${size}px;
+						height: ${size}px;
+						left: ${Math.random() * 100}%;
+						top: ${Math.random() * 100}%;
+						animation: twinkle ${duration} ease-in-out infinite;
+						animation-delay: ${delay};
+						--min-opacity: ${minOpacity};
+					`;
 					container.appendChild(star);
 				}
 			}
