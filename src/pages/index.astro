@@ -76,7 +76,8 @@ wikiWithRelated.forEach(wiki => {
 			.stars {
 				position: absolute;
 				inset: 0;
-				z-index: 0;
+				z-index: 100;
+				pointer-events: none;
 			}
 			.star {
 				position: absolute;
@@ -98,7 +99,7 @@ wikiWithRelated.forEach(wiki => {
 			<WikiGraph nodes={graphNodes} links={graphLinks} fullscreen={true} />
 		</div>
 		<Analytics />
-		<script>
+		<script is:inline>
 			function createStars() {
 				const container = document.getElementById('stars');
 				if (!container) return;
@@ -119,7 +120,11 @@ wikiWithRelated.forEach(wiki => {
 				}
 			}
 
-			createStars();
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', createStars);
+			} else {
+				createStars();
+			}
 			document.addEventListener('astro:page-load', createStars);
 		</script>
 	</body>
