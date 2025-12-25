@@ -91,19 +91,23 @@ wikiWithRelated.forEach(wiki => {
 				margin: auto;
 				padding: 2em 1em;
 			}
-			.wiki-header {
+			.page-header {
 				display: flex;
 				justify-content: space-between;
 				align-items: flex-start;
-				margin-bottom: 1.5em;
+				margin-bottom: 2em;
 				flex-wrap: wrap;
 				gap: 1em;
 			}
-			h1 {
-				margin-bottom: 0.25em;
+			.page-header h1 {
+				font-size: 2.5em;
+				font-weight: 800;
+				margin-bottom: 0.5em;
 			}
 			.description {
 				color: rgb(var(--gray));
+				font-size: 1.1em;
+				line-height: 1.6;
 				margin: 0;
 			}
 			.view-toggle {
@@ -213,8 +217,8 @@ wikiWithRelated.forEach(wiki => {
 	<body>
 		<Header />
 		<main>
-			<div class="wiki-header">
-				<div>
+			<div class="page-header">
+				<div class="header-content">
 					<h1>Wiki</h1>
 					<p class="description">개발 용어 사전입니다. 블로그 글에서 용어를 클릭하면 이곳으로 연결됩니다.</p>
 				</div>

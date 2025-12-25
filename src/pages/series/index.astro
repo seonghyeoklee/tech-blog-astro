@@ -80,7 +80,10 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 				margin: auto;
 				padding: 3em 1em 4em;
 			}
-			h1 {
+			.page-header {
+				margin-bottom: 3em;
+			}
+			.page-header h1 {
 				font-size: 2.5em;
 				font-weight: 800;
 				margin-bottom: 0.5em;
@@ -88,7 +91,6 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 			.description {
 				color: rgb(var(--gray));
 				font-size: 1.1em;
-				margin-bottom: 3em;
 				line-height: 1.6;
 			}
 			.series-grid {
@@ -189,11 +191,13 @@ const seriesArray = Array.from(seriesMap.entries()).map(([slug, data]) => ({
 	<body>
 		<Header />
 		<main>
-			<h1>📚 시리즈</h1>
-			<p class="description">
-				주제별로 묶어서 체계적으로 읽을 수 있는 글 모음입니다.<br />
-				유튜브 재생목록처럼 순서대로 읽으면 더 이해하기 쉽습니다.
-			</p>
+			<div class="page-header">
+				<h1>Series</h1>
+				<p class="description">
+					주제별로 묶어서 체계적으로 읽을 수 있는 글 모음입니다.<br />
+					유튜브 재생목록처럼 순서대로 읽으면 더 이해하기 쉽습니다.
+				</p>
+			</div>
 
 			<div class="series-grid">
 				{seriesArray.map((series) => (
