@@ -101,42 +101,110 @@ wikiWithRelated.forEach(wiki => {
 				pointer-events: none;
 				z-index: 0;
 			}
-			/* 성운 효과 */
+			/* 성운 효과 - 더 역동적 */
 			.nebula {
 				position: absolute;
 				border-radius: 50%;
-				filter: blur(80px);
-				opacity: 0.15;
-				animation: nebula-pulse 20s ease-in-out infinite;
+				filter: blur(100px);
+				opacity: 0.2;
 				z-index: 0;
 			}
 			.nebula-1 {
-				width: 500px;
-				height: 500px;
-				background: radial-gradient(circle, rgba(138, 43, 226, 0.4) 0%, transparent 70%);
-				top: 10%;
-				left: 10%;
-				animation-delay: 0s;
+				width: 600px;
+				height: 600px;
+				background: radial-gradient(circle, rgba(138, 43, 226, 0.5) 0%, transparent 70%);
+				top: 5%;
+				left: 5%;
+				animation: nebula-drift-1 30s ease-in-out infinite;
 			}
 			.nebula-2 {
-				width: 400px;
-				height: 400px;
-				background: radial-gradient(circle, rgba(30, 144, 255, 0.3) 0%, transparent 70%);
-				bottom: 20%;
-				right: 15%;
-				animation-delay: -7s;
+				width: 500px;
+				height: 500px;
+				background: radial-gradient(circle, rgba(30, 144, 255, 0.4) 0%, transparent 70%);
+				bottom: 10%;
+				right: 10%;
+				animation: nebula-drift-2 25s ease-in-out infinite;
 			}
 			.nebula-3 {
-				width: 300px;
-				height: 300px;
-				background: radial-gradient(circle, rgba(255, 105, 180, 0.25) 0%, transparent 70%);
-				top: 60%;
-				left: 60%;
-				animation-delay: -14s;
+				width: 400px;
+				height: 400px;
+				background: radial-gradient(circle, rgba(255, 105, 180, 0.35) 0%, transparent 70%);
+				top: 50%;
+				left: 50%;
+				animation: nebula-drift-3 35s ease-in-out infinite;
 			}
-			@keyframes nebula-pulse {
-				0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.15; }
-				50% { transform: scale(1.1) translate(10px, -10px); opacity: 0.2; }
+			.nebula-4 {
+				width: 350px;
+				height: 350px;
+				background: radial-gradient(circle, rgba(0, 255, 200, 0.25) 0%, transparent 70%);
+				top: 20%;
+				right: 30%;
+				animation: nebula-drift-4 28s ease-in-out infinite;
+			}
+			@keyframes nebula-drift-1 {
+				0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
+				25% { transform: translate(50px, 30px) scale(1.1); opacity: 0.25; }
+				50% { transform: translate(20px, 60px) scale(0.95); opacity: 0.18; }
+				75% { transform: translate(-30px, 20px) scale(1.05); opacity: 0.22; }
+			}
+			@keyframes nebula-drift-2 {
+				0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
+				33% { transform: translate(-40px, -20px) scale(1.08); opacity: 0.25; }
+				66% { transform: translate(30px, -40px) scale(0.92); opacity: 0.15; }
+			}
+			@keyframes nebula-drift-3 {
+				0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.2; }
+				50% { transform: translate(-45%, -55%) scale(1.15); opacity: 0.28; }
+			}
+			@keyframes nebula-drift-4 {
+				0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.18; }
+				40% { transform: translate(-20px, 40px) scale(1.1); opacity: 0.25; }
+				80% { transform: translate(40px, -20px) scale(0.9); opacity: 0.15; }
+			}
+			/* 유성 효과 */
+			.shooting-stars {
+				position: absolute;
+				inset: 0;
+				z-index: 1;
+				pointer-events: none;
+				overflow: hidden;
+			}
+			.shooting-star {
+				position: absolute;
+				width: 100px;
+				height: 1px;
+				background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+				transform: rotate(-45deg);
+				animation: shoot linear infinite;
+				opacity: 0;
+			}
+			@keyframes shoot {
+				0% { transform: translateX(-100px) translateY(-100px) rotate(-45deg); opacity: 0; }
+				5% { opacity: 1; }
+				20% { opacity: 1; }
+				100% { transform: translateX(calc(100vw + 200px)) translateY(calc(100vh + 200px)) rotate(-45deg); opacity: 0; }
+			}
+			/* 오로라 효과 */
+			.aurora {
+				position: absolute;
+				bottom: 0;
+				left: 0;
+				right: 0;
+				height: 40%;
+				background: linear-gradient(180deg,
+					transparent 0%,
+					rgba(0, 255, 150, 0.03) 30%,
+					rgba(100, 200, 255, 0.05) 60%,
+					rgba(150, 100, 255, 0.03) 100%
+				);
+				filter: blur(40px);
+				animation: aurora-wave 15s ease-in-out infinite;
+				z-index: 0;
+				pointer-events: none;
+			}
+			@keyframes aurora-wave {
+				0%, 100% { transform: translateY(0) scaleY(1); opacity: 0.5; }
+				50% { transform: translateY(-20px) scaleY(1.1); opacity: 0.7; }
 			}
 		</style>
 	</head>
@@ -144,10 +212,13 @@ wikiWithRelated.forEach(wiki => {
 		<Header />
 		<div class="universe-container">
 			<div class="stars" id="stars"></div>
+			<div class="shooting-stars" id="shooting-stars"></div>
 			<div class="milky-way"></div>
+			<div class="aurora"></div>
 			<div class="nebula nebula-1"></div>
 			<div class="nebula nebula-2"></div>
 			<div class="nebula nebula-3"></div>
+			<div class="nebula nebula-4"></div>
 			<WikiGraph nodes={graphNodes} links={graphLinks} fullscreen={true} />
 		</div>
 		<Analytics />
@@ -157,23 +228,47 @@ wikiWithRelated.forEach(wiki => {
 				const container = document.getElementById('stars');
 				if (!container) return;
 				container.innerHTML = '';
-				const count = 150;
+				const count = 200;
 				for (let i = 0; i < count; i++) {
 					const star = document.createElement('div');
 					star.className = 'star';
-					const size = Math.random() * 2 + 1;
+					const size = Math.random() * 2.5 + 0.5;
 					star.style.width = size + 'px';
 					star.style.height = size + 'px';
 					star.style.left = Math.random() * 100 + '%';
 					star.style.top = Math.random() * 100 + '%';
 					star.style.setProperty('--duration', (2 + Math.random() * 4) + 's');
 					star.style.setProperty('--delay', Math.random() * 5 + 's');
-					star.style.setProperty('--min-opacity', (0.2 + Math.random() * 0.3).toString());
+					star.style.setProperty('--min-opacity', (0.2 + Math.random() * 0.4).toString());
 					container.appendChild(star);
 				}
 			}
-			createStars();
-			document.addEventListener('astro:page-load', createStars);
+
+			// 유성 생성
+			function createShootingStars() {
+				const container = document.getElementById('shooting-stars');
+				if (!container) return;
+				container.innerHTML = '';
+
+				// 3개의 유성을 다른 타이밍으로
+				for (let i = 0; i < 3; i++) {
+					const star = document.createElement('div');
+					star.className = 'shooting-star';
+					star.style.left = (Math.random() * 70) + '%';
+					star.style.top = (Math.random() * 50) + '%';
+					star.style.animationDuration = (3 + Math.random() * 2) + 's';
+					star.style.animationDelay = (i * 8 + Math.random() * 5) + 's';
+					container.appendChild(star);
+				}
+			}
+
+			function initUniverse() {
+				createStars();
+				createShootingStars();
+			}
+
+			initUniverse();
+			document.addEventListener('astro:page-load', initUniverse);
 		</script>
 	</body>
 </html>
