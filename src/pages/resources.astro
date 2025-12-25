@@ -1,0 +1,330 @@
+---
+import { ViewTransitions } from 'astro:transitions';
+import Analytics from '@vercel/analytics/astro';
+import BaseHead from '../components/BaseHead.astro';
+import Footer from '../components/Footer.astro';
+import Header from '../components/Header.astro';
+import { SITE_TITLE } from '../consts';
+
+// 공식 문서
+const docs = [
+	// Languages
+	{ name: 'Java', url: 'https://docs.oracle.com/en/java/', icon: 'java/java-original', category: 'language' },
+	{ name: 'Kotlin', url: 'https://kotlinlang.org/docs/', icon: 'kotlin/kotlin-original', category: 'language' },
+	{ name: 'Python', url: 'https://docs.python.org/3/', icon: 'python/python-original', category: 'language' },
+	{ name: 'TypeScript', url: 'https://www.typescriptlang.org/docs/', icon: 'typescript/typescript-original', category: 'language' },
+	{ name: 'Go', url: 'https://go.dev/doc/', icon: 'go/go-original', category: 'language' },
+	{ name: 'Rust', url: 'https://doc.rust-lang.org/book/', icon: 'rust/rust-original', category: 'language' },
+
+	// Frameworks
+	{ name: 'Spring', url: 'https://docs.spring.io/spring-framework/reference/', icon: 'spring/spring-original', category: 'framework' },
+	{ name: 'Spring Boot', url: 'https://docs.spring.io/spring-boot/', icon: 'spring/spring-original', category: 'framework' },
+	{ name: 'Spring Security', url: 'https://docs.spring.io/spring-security/reference/', icon: 'spring/spring-original', category: 'framework' },
+	{ name: 'Spring Data JPA', url: 'https://docs.spring.io/spring-data/jpa/reference/', icon: 'spring/spring-original', category: 'framework' },
+	{ name: 'Hibernate', url: 'https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html', icon: 'hibernate/hibernate-original', category: 'framework' },
+	{ name: 'Node.js', url: 'https://nodejs.org/docs/', icon: 'nodejs/nodejs-original', category: 'framework' },
+	{ name: 'NestJS', url: 'https://docs.nestjs.com/', icon: 'nestjs/nestjs-original', category: 'framework' },
+	{ name: 'FastAPI', url: 'https://fastapi.tiangolo.com/', icon: 'fastapi/fastapi-original', category: 'framework' },
+
+	// Databases
+	{ name: 'MySQL', url: 'https://dev.mysql.com/doc/refman/8.0/en/', icon: 'mysql/mysql-original', category: 'database' },
+	{ name: 'PostgreSQL', url: 'https://www.postgresql.org/docs/', icon: 'postgresql/postgresql-original', category: 'database' },
+	{ name: 'MongoDB', url: 'https://www.mongodb.com/docs/', icon: 'mongodb/mongodb-original', category: 'database' },
+	{ name: 'Redis', url: 'https://redis.io/docs/', icon: 'redis/redis-original', category: 'database' },
+	{ name: 'Elasticsearch', url: 'https://www.elastic.co/guide/en/elasticsearch/reference/current/', icon: 'elasticsearch/elasticsearch-original', category: 'database' },
+
+	// Message Queue & Streaming
+	{ name: 'Kafka', url: 'https://kafka.apache.org/documentation/', icon: 'apachekafka/apachekafka-original', category: 'messaging' },
+	{ name: 'RabbitMQ', url: 'https://www.rabbitmq.com/docs', icon: 'rabbitmq/rabbitmq-original', category: 'messaging' },
+
+	// DevOps & Cloud
+	{ name: 'Docker', url: 'https://docs.docker.com/', icon: 'docker/docker-original', category: 'devops' },
+	{ name: 'Kubernetes', url: 'https://kubernetes.io/docs/home/', icon: 'kubernetes/kubernetes-original', category: 'devops' },
+	{ name: 'AWS', url: 'https://docs.aws.amazon.com/', icon: 'amazonwebservices/amazonwebservices-plain-wordmark', category: 'devops' },
+	{ name: 'GCP', url: 'https://cloud.google.com/docs', icon: 'googlecloud/googlecloud-original', category: 'devops' },
+	{ name: 'Terraform', url: 'https://developer.hashicorp.com/terraform/docs', icon: 'terraform/terraform-original', category: 'devops' },
+	{ name: 'Nginx', url: 'https://nginx.org/en/docs/', icon: 'nginx/nginx-original', category: 'devops' },
+	{ name: 'GitHub Actions', url: 'https://docs.github.com/en/actions', icon: 'github/github-original', category: 'devops' },
+	{ name: 'Jenkins', url: 'https://www.jenkins.io/doc/', icon: 'jenkins/jenkins-original', category: 'devops' },
+
+	// Testing & Build
+	{ name: 'JUnit 5', url: 'https://junit.org/junit5/docs/current/user-guide/', icon: 'junit/junit-original', category: 'testing' },
+	{ name: 'Gradle', url: 'https://docs.gradle.org/current/userguide/userguide.html', icon: 'gradle/gradle-original', category: 'testing' },
+	{ name: 'Maven', url: 'https://maven.apache.org/guides/', icon: 'maven/maven-original', category: 'testing' },
+
+	// Monitoring & Observability
+	{ name: 'Prometheus', url: 'https://prometheus.io/docs/', icon: 'prometheus/prometheus-original', category: 'monitoring' },
+	{ name: 'Grafana', url: 'https://grafana.com/docs/', icon: 'grafana/grafana-original', category: 'monitoring' },
+];
+
+// AI 도구
+const aiTools = [
+	{ name: 'Claude', url: 'https://docs.anthropic.com/', desc: 'Anthropic AI 어시스턴트', icon: '🤖' },
+	{ name: 'ChatGPT', url: 'https://platform.openai.com/docs/', desc: 'OpenAI GPT 모델', icon: '💬' },
+	{ name: 'GitHub Copilot', url: 'https://docs.github.com/en/copilot', desc: 'AI 코드 어시스턴트', icon: '🧑‍💻' },
+	{ name: 'Cursor', url: 'https://docs.cursor.com/', desc: 'AI 코드 에디터', icon: '✨' },
+	{ name: 'Gemini', url: 'https://ai.google.dev/docs', desc: 'Google AI 모델', icon: '💎' },
+	{ name: 'Perplexity', url: 'https://docs.perplexity.ai/', desc: 'AI 검색 엔진', icon: '🔍' },
+	{ name: 'Midjourney', url: 'https://docs.midjourney.com/', desc: 'AI 이미지 생성', icon: '🎨' },
+	{ name: 'v0.dev', url: 'https://v0.dev/docs', desc: 'AI UI 생성', icon: '🎯' },
+];
+
+// 추천 리소스
+const resources = [
+	{ name: 'Baeldung', url: 'https://www.baeldung.com/', desc: 'Java/Spring 튜토리얼' },
+	{ name: 'Martin Fowler', url: 'https://martinfowler.com/', desc: '아키텍처/설계 패턴' },
+	{ name: 'Refactoring Guru', url: 'https://refactoring.guru/', desc: '디자인 패턴/리팩토링' },
+	{ name: 'Java Design Patterns', url: 'https://java-design-patterns.com/', desc: 'Java 디자인 패턴 예제' },
+	{ name: 'Spring Guides', url: 'https://spring.io/guides', desc: 'Spring 공식 가이드' },
+	{ name: 'DZone', url: 'https://dzone.com/java', desc: 'Java 개발자 커뮤니티' },
+	{ name: 'InfoQ', url: 'https://www.infoq.com/', desc: '소프트웨어 개발 트렌드' },
+	{ name: 'High Scalability', url: 'http://highscalability.com/', desc: '대규모 시스템 아키텍처' },
+	{ name: 'The Twelve-Factor App', url: 'https://12factor.net/ko/', desc: 'SaaS 앱 개발 방법론' },
+	{ name: 'System Design Primer', url: 'https://github.com/donnemartin/system-design-primer', desc: '시스템 설계 학습' },
+	{ name: 'Awesome Java', url: 'https://github.com/akullpp/awesome-java', desc: 'Java 라이브러리 모음' },
+	{ name: 'Real Python', url: 'https://realpython.com/', desc: 'Python 튜토리얼' },
+];
+
+const categories = {
+	language: '프로그래밍 언어',
+	framework: '프레임워크',
+	database: '데이터베이스',
+	messaging: '메시지 큐 & 스트리밍',
+	devops: 'DevOps & 클라우드',
+	testing: '테스트 & 빌드',
+	monitoring: '모니터링',
+};
+---
+
+<!doctype html>
+<html lang="ko" data-theme="dark">
+	<head>
+		<ViewTransitions />
+		<BaseHead title={`Resources | ${SITE_TITLE}`} description="개발에 유용한 공식 문서, AI 도구, 추천 리소스 모음" />
+		<style>
+			main {
+				width: 1200px;
+				max-width: calc(100% - 2em);
+				margin: auto;
+				padding: 3em 1em 4em;
+			}
+
+			.page-header {
+				text-align: center;
+				margin-bottom: 3em;
+			}
+			.page-title {
+				font-size: 2.5em;
+				font-weight: 800;
+				margin-bottom: 0.5em;
+				background: linear-gradient(135deg, #fff 0%, #a78bfa 50%, #60a5fa 100%);
+				-webkit-background-clip: text;
+				-webkit-text-fill-color: transparent;
+				background-clip: text;
+			}
+			.page-subtitle {
+				font-size: 1.1em;
+				color: rgba(255, 255, 255, 0.6);
+			}
+
+			.section {
+				margin-bottom: 3em;
+			}
+			.section-title {
+				font-size: 1.5em;
+				font-weight: 700;
+				margin-bottom: 1.5em;
+				color: rgb(var(--gray-dark));
+				display: flex;
+				align-items: center;
+				gap: 0.5em;
+			}
+
+			/* Docs Grid */
+			.docs-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+				gap: 1em;
+			}
+			.doc-link {
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				padding: 1.5em 1em;
+				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
+				border: 1px solid rgba(var(--gray-light), 0.3);
+				border-radius: 16px;
+				text-decoration: none;
+				color: rgb(var(--gray-dark));
+				font-size: 0.85em;
+				font-weight: 600;
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+			.doc-link:hover {
+				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.4);
+				transform: translateY(-6px);
+				box-shadow: 0 8px 24px rgba(var(--gray), 0.15);
+			}
+			.doc-link:hover .doc-icon {
+				transform: scale(1.15);
+			}
+			.doc-icon {
+				width: 40px;
+				height: 40px;
+				margin-bottom: 0.8em;
+				transition: transform 0.3s ease;
+			}
+
+			/* AI Tools */
+			.ai-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+				gap: 1.2em;
+			}
+			.ai-card {
+				display: flex;
+				align-items: center;
+				gap: 1em;
+				padding: 1.2em 1.5em;
+				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
+				border: 1px solid rgba(var(--gray-light), 0.3);
+				border-radius: 16px;
+				text-decoration: none;
+				transition: all 0.3s ease;
+			}
+			.ai-card:hover {
+				border-color: rgba(167, 139, 250, 0.4);
+				transform: translateX(6px);
+				box-shadow: 0 4px 16px rgba(var(--gray), 0.1);
+			}
+			.ai-icon {
+				font-size: 2em;
+			}
+			.ai-info {
+				flex: 1;
+			}
+			.ai-name {
+				color: rgb(var(--gray-dark));
+				font-weight: 700;
+				font-size: 1.05em;
+				margin-bottom: 0.2em;
+			}
+			.ai-desc {
+				font-size: 0.85em;
+				color: rgb(var(--gray));
+			}
+
+			/* Resources */
+			.resources-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+				gap: 1.2em;
+			}
+			.resource-card {
+				display: block;
+				padding: 1.5em;
+				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
+				border: 1px solid rgba(var(--gray-light), 0.3);
+				border-radius: 16px;
+				text-decoration: none;
+				transition: all 0.3s ease;
+				position: relative;
+			}
+			.resource-card::before {
+				content: '';
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 3px;
+				height: 0;
+				background: linear-gradient(180deg, #a78bfa 0%, #60a5fa 100%);
+				border-radius: 0 2px 2px 0;
+				transition: height 0.3s ease;
+			}
+			.resource-card:hover::before {
+				height: 100%;
+			}
+			.resource-card:hover {
+				transform: translateX(6px);
+				box-shadow: 0 4px 16px rgba(var(--gray), 0.1);
+			}
+			.resource-name {
+				color: rgb(var(--gray-dark));
+				font-weight: 700;
+				font-size: 1.05em;
+				margin-bottom: 0.4em;
+			}
+			.resource-desc {
+				font-size: 0.85em;
+				color: rgb(var(--gray));
+			}
+
+			.category-section {
+				margin-bottom: 2em;
+			}
+			.category-title {
+				font-size: 1.1em;
+				font-weight: 600;
+				color: rgb(var(--gray));
+				margin-bottom: 1em;
+				padding-bottom: 0.5em;
+				border-bottom: 1px solid rgba(var(--gray-light), 0.3);
+			}
+		</style>
+	</head>
+	<body>
+		<Header />
+		<main>
+			<div class="page-header">
+				<h1 class="page-title">Resources</h1>
+				<p class="page-subtitle">개발에 유용한 공식 문서, AI 도구, 추천 리소스 모음</p>
+			</div>
+
+			<div class="section">
+				<h2 class="section-title">🤖 AI 도구</h2>
+				<div class="ai-grid">
+					{aiTools.map((tool) => (
+						<a href={tool.url} target="_blank" rel="noopener" class="ai-card">
+							<span class="ai-icon">{tool.icon}</span>
+							<div class="ai-info">
+								<div class="ai-name">{tool.name}</div>
+								<div class="ai-desc">{tool.desc}</div>
+							</div>
+						</a>
+					))}
+				</div>
+			</div>
+
+			<div class="section">
+				<h2 class="section-title">📚 공식 문서</h2>
+				{Object.entries(categories).map(([key, label]) => (
+					<div class="category-section">
+						<h3 class="category-title">{label}</h3>
+						<div class="docs-grid">
+							{docs.filter(d => d.category === key).map((doc) => (
+								<a href={doc.url} target="_blank" rel="noopener" class="doc-link">
+									<img src={`https://cdn.jsdelivr.net/gh/devicons/devicon/icons/${doc.icon}.svg`} alt={doc.name} class="doc-icon" />
+									<span>{doc.name}</span>
+								</a>
+							))}
+						</div>
+					</div>
+				))}
+			</div>
+
+			<div class="section">
+				<h2 class="section-title">🔗 추천 리소스</h2>
+				<div class="resources-grid">
+					{resources.map((res) => (
+						<a href={res.url} target="_blank" rel="noopener" class="resource-card">
+							<div class="resource-name">{res.name}</div>
+							<div class="resource-desc">{res.desc}</div>
+						</a>
+					))}
+				</div>
+			</div>
+		</main>
+		<Footer />
+		<Analytics />
+	</body>
+</html>

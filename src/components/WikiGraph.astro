@@ -15,9 +15,10 @@ interface Props {
   nodes: WikiNode[];
   links: WikiLink[];
   currentWikiId?: string;
+  fullscreen?: boolean;
 }
 
-const { nodes, links, currentWikiId } = Astro.props;
+const { nodes, links, currentWikiId, fullscreen = false } = Astro.props;
 
 const categoryColors: Record<string, string> = {
   database: '#3b82f6',
@@ -29,13 +30,7 @@ const categoryColors: Record<string, string> = {
 };
 ---
 
-<div class="wiki-graph-container">
-  <div class="graph-bg">
-    <div class="gradient-orb orb-1"></div>
-    <div class="gradient-orb orb-2"></div>
-    <div class="gradient-orb orb-3"></div>
-  </div>
-  <div class="particles" id="particles"></div>
+<div class={`wiki-graph-container ${fullscreen ? 'fullscreen' : ''}`}>
   <div class="graph-controls">
     <button id="zoom-in" title="확대">+</button>
     <button id="zoom-out" title="축소">−</button>
@@ -62,13 +57,12 @@ const categoryColors: Record<string, string> = {
 <script
   id="graph-data"
   type="application/json"
-  set:html={JSON.stringify({ nodes, links, currentWikiId, categoryColors })}
+  set:html={JSON.stringify({ nodes, links, currentWikiId, categoryColors, fullscreen })}
 />
 
 <script>
   import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
-  // 정리할 리소스 저장
   let cleanupFns: (() => void)[] = [];
 
   function cleanup() {
@@ -77,12 +71,12 @@ const categoryColors: Record<string, string> = {
   }
 
   function initGraph() {
-    cleanup(); // 이전 인스턴스 정리
+    cleanup();
 
     const dataEl = document.getElementById('graph-data');
     if (!dataEl) return;
 
-    const { nodes, links, currentWikiId, categoryColors } = JSON.parse(dataEl.textContent || '{}');
+    const { nodes, links, currentWikiId, categoryColors, fullscreen } = JSON.parse(dataEl.textContent || '{}');
 
     const container = document.querySelector('.wiki-graph-container');
     if (!container) return;
@@ -93,7 +87,7 @@ const categoryColors: Record<string, string> = {
     svg.selectAll('*').remove();
 
     const width = container.clientWidth;
-    const height = Math.max(600, window.innerHeight - 180);
+    const height = fullscreen ? container.clientHeight : Math.max(600, window.innerHeight - 180);
 
     svg.attr('width', width).attr('height', height);
 
@@ -133,31 +127,41 @@ const categoryColors: Record<string, string> = {
       d.isHub = d.degree >= hubThreshold;
     });
 
-    // 노드 초기 위치
+    // 노드 초기 위치 - 더 넓게 분산
     nodes.forEach((d: any) => {
-      d.x = width / 2 + (Math.random() - 0.5) * 200;
-      d.y = height / 2 + (Math.random() - 0.5) * 200;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 100 + Math.random() * 200;
+      d.x = width / 2 + Math.cos(angle) * radius;
+      d.y = height / 2 + Math.sin(angle) * radius;
     });
 
-    // Force 시뮬레이션 (최적화: alphaDecay 증가)
+    // Force 시뮬레이션 - 더 부드러운 움직임
     const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(100).strength(0.4))
-      .force('charge', d3.forceManyBody().strength(-300))
+      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(120).strength(0.3))
+      .force('charge', d3.forceManyBody().strength(-400))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(40))
-      .force('x', d3.forceX(width / 2).strength(0.05))
-      .force('y', d3.forceY(height / 2).strength(0.05))
-      .alphaDecay(0.028)
-      .velocityDecay(0.35);
+      .force('collision', d3.forceCollide().radius(50))
+      .force('x', d3.forceX(width / 2).strength(0.03))
+      .force('y', d3.forceY(height / 2).strength(0.03))
+      .alphaDecay(0.015)
+      .velocityDecay(0.4);
 
-    // 링크 그라데이션
+    // 링크 글로우 효과
     const defs = svg.append('defs');
-    const gradient = defs.append('linearGradient')
-      .attr('id', 'link-gradient')
-      .attr('gradientUnits', 'userSpaceOnUse');
-    gradient.append('stop').attr('offset', '0%').attr('stop-color', '#60a5fa');
-    gradient.append('stop').attr('offset', '50%').attr('stop-color', '#a78bfa');
-    gradient.append('stop').attr('offset', '100%').attr('stop-color', '#60a5fa');
+
+    // 글로우 필터
+    const glow = defs.append('filter')
+      .attr('id', 'glow')
+      .attr('x', '-50%')
+      .attr('y', '-50%')
+      .attr('width', '200%')
+      .attr('height', '200%');
+    glow.append('feGaussianBlur')
+      .attr('stdDeviation', '2')
+      .attr('result', 'coloredBlur');
+    const glowMerge = glow.append('feMerge');
+    glowMerge.append('feMergeNode').attr('in', 'coloredBlur');
+    glowMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     // 링크 그리기
     const link = g.append('g')
@@ -165,9 +169,8 @@ const categoryColors: Record<string, string> = {
       .selectAll('line')
       .data(links)
       .join('line')
-      .attr('stroke', 'url(#link-gradient)')
-      .attr('stroke-width', 1.5)
-      .attr('stroke-opacity', 0.4);
+      .attr('stroke', 'rgba(167, 139, 250, 0.4)')
+      .attr('stroke-width', 1.5);
 
     // 노드 그룹
     const node = g.append('g')
@@ -202,12 +205,12 @@ const categoryColors: Record<string, string> = {
       }).join('') + 'Z';
     };
 
-    // 노드 모양
+    // 노드 모양 - 글로우 효과 추가
     node.each(function(d: any) {
       const el = d3.select(this);
       const size = d.id === currentWikiId ? 22 : (d.isHub ? 18 : 14);
       const color = categoryColors[d.category] || '#6b7280';
-      const strokeColor = d.id === currentWikiId ? '#1f2937' : '#fff';
+      const strokeColor = d.id === currentWikiId ? '#1f2937' : 'rgba(255,255,255,0.8)';
       const strokeWidth = d.id === currentWikiId ? 3 : 1.5;
 
       if (d.isHub) {
@@ -217,6 +220,7 @@ const categoryColors: Record<string, string> = {
           .attr('fill', color)
           .attr('stroke', strokeColor)
           .attr('stroke-width', strokeWidth)
+          .attr('filter', 'url(#glow)')
           .style('cursor', 'pointer');
       } else {
         el.append('circle')
@@ -224,19 +228,21 @@ const categoryColors: Record<string, string> = {
           .attr('fill', color)
           .attr('stroke', strokeColor)
           .attr('stroke-width', strokeWidth)
+          .attr('filter', 'url(#glow)')
           .style('cursor', 'pointer');
       }
     });
 
     // 노드 텍스트
     node.append('text')
-      .text((d: any) => d.term.length > 10 ? d.term.slice(0, 10) + '...' : d.term)
+      .text((d: any) => d.term.length > 12 ? d.term.slice(0, 12) + '...' : d.term)
       .attr('x', 0)
       .attr('y', (d: any) => d.isHub ? 32 : 28)
       .attr('text-anchor', 'middle')
       .attr('font-size', (d: any) => d.isHub ? '11px' : '10px')
-      .attr('fill', 'rgba(255, 255, 255, 0.9)')
-      .attr('font-weight', (d: any) => (d.id === currentWikiId || d.isHub) ? '600' : '500');
+      .attr('fill', 'rgba(255, 255, 255, 0.85)')
+      .attr('font-weight', (d: any) => (d.id === currentWikiId || d.isHub) ? '600' : '400')
+      .style('text-shadow', '0 0 10px rgba(0,0,0,0.8)');
 
     // 호버 효과
     node.on('mouseover', (event: any, d: any) => {
@@ -263,7 +269,7 @@ const categoryColors: Record<string, string> = {
     .on('mouseout', () => {
       tooltip.style('opacity', 0);
       node.style('opacity', 1);
-      link.style('opacity', 0.4);
+      link.style('opacity', 1);
     })
     .on('click', (_: any, d: any) => {
       window.location.href = `/wiki/${d.id}`;
@@ -283,66 +289,56 @@ const categoryColors: Record<string, string> = {
     // 시뮬레이션 시작
     simulation.alpha(1).restart();
 
-    // Intersection Observer로 보일 때만 애니메이션
+    // 지속적인 부드러운 움직임 (우주 느낌)
     let isVisible = true;
-    let animationInterval: number | null = null;
+    let driftInterval: number | null = null;
 
     const visibilityObserver = new IntersectionObserver((entries) => {
       isVisible = entries[0].isIntersecting;
-      if (isVisible && !animationInterval) {
-        startAnimations();
-      } else if (!isVisible && animationInterval) {
-        stopAnimations();
+      if (isVisible && !driftInterval) {
+        startDrift();
+      } else if (!isVisible && driftInterval) {
+        stopDrift();
       }
     }, { threshold: 0.1 });
 
     visibilityObserver.observe(container);
     cleanupFns.push(() => visibilityObserver.disconnect());
 
-    function startAnimations() {
-      // 주기적 움직임 (5초마다)
-      animationInterval = window.setInterval(() => {
+    function startDrift() {
+      // 지속적인 미세 움직임 - 우주에 떠있는 느낌
+      driftInterval = window.setInterval(() => {
         if (!isVisible) return;
-        const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
-        if (randomNode && !randomNode.fx) {
-          randomNode.vx += (Math.random() - 0.5) * 1.5;
-          randomNode.vy += (Math.random() - 0.5) * 1.5;
-          simulation.alpha(0.08).restart();
+
+        // 여러 노드에 부드러운 힘 적용
+        const numNodesToMove = Math.floor(Math.random() * 3) + 1;
+        for (let i = 0; i < numNodesToMove; i++) {
+          const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+          if (randomNode && !randomNode.fx) {
+            randomNode.vx += (Math.random() - 0.5) * 0.8;
+            randomNode.vy += (Math.random() - 0.5) * 0.8;
+          }
         }
-      }, 5000);
+        simulation.alpha(0.03).restart();
+      }, 2000);
     }
 
-    function stopAnimations() {
-      if (animationInterval) {
-        clearInterval(animationInterval);
-        animationInterval = null;
+    function stopDrift() {
+      if (driftInterval) {
+        clearInterval(driftInterval);
+        driftInterval = null;
       }
     }
 
-    startAnimations();
-    cleanupFns.push(stopAnimations);
+    startDrift();
+    cleanupFns.push(stopDrift);
 
-    // 시뮬레이션 종료 시 부드럽게 재시작
+    // 시뮬레이션 종료 시 재시작
     simulation.on('end', () => {
       if (isVisible) {
-        setTimeout(() => simulation.alpha(0.02).restart(), 3000);
+        setTimeout(() => simulation.alpha(0.02).restart(), 1000);
       }
     });
-
-    // 파티클 생성 (15개로 감소)
-    const particlesContainer = document.getElementById('particles');
-    if (particlesContainer) {
-      particlesContainer.innerHTML = '';
-      for (let i = 0; i < 15; i++) {
-        const particle = document.createElement('div');
-        particle.className = 'particle';
-        particle.style.left = Math.random() * 100 + '%';
-        particle.style.top = Math.random() * 100 + '%';
-        particle.style.animationDelay = Math.random() * 5 + 's';
-        particle.style.animationDuration = (4 + Math.random() * 4) + 's';
-        particlesContainer.appendChild(particle);
-      }
-    }
 
     // 정리 함수 등록
     cleanupFns.push(() => {
@@ -353,14 +349,12 @@ const categoryColors: Record<string, string> = {
     });
   }
 
-  // 초기화
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initGraph);
   } else {
     initGraph();
   }
 
-  // View Transitions 대응
   document.addEventListener('astro:page-load', initGraph);
 </script>
 
@@ -372,201 +366,159 @@ const categoryColors: Record<string, string> = {
     overflow: hidden;
   }
 
-  .graph-bg {
+  .wiki-graph-container.fullscreen {
     position: absolute;
     inset: 0;
-    overflow: hidden;
-    z-index: 0;
-    will-change: transform;
-  }
-
-  .gradient-orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(60px);
-    opacity: 0.4;
-    animation: float 25s ease-in-out infinite;
-    will-change: transform;
-  }
-
-  .orb-1 {
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, transparent 70%);
-    top: -100px;
-    left: -100px;
-  }
-
-  .orb-2 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
-    top: 50%;
-    right: -80px;
-    animation-delay: -8s;
-  }
-
-  .orb-3 {
-    width: 250px;
-    height: 250px;
-    background: radial-gradient(circle, rgba(34, 211, 238, 0.25) 0%, transparent 70%);
-    bottom: -50px;
-    left: 30%;
-    animation-delay: -16s;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(20px, -20px) scale(1.02); }
-    66% { transform: translate(-15px, 15px) scale(0.98); }
-  }
-
-  .particles {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    pointer-events: none;
-  }
-
-  :global(.particle) {
-    position: absolute;
-    width: 2px;
-    height: 2px;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 50%;
-    animation: sparkle 5s ease-in-out infinite;
-    will-change: transform, opacity;
-  }
-
-  @keyframes sparkle {
-    0%, 100% { opacity: 0; transform: translateY(0) scale(0); }
-    50% { opacity: 0.8; transform: translateY(-15px) scale(1); }
+    width: 100%;
+    height: 100%;
   }
 
   #wiki-graph {
     display: block;
     width: 100%;
-    height: calc(100vh - 180px);
-    min-height: 600px;
+    height: 100%;
     position: relative;
     z-index: 2;
   }
 
+  .wiki-graph-container:not(.fullscreen) #wiki-graph {
+    height: calc(100vh - 180px);
+    min-height: 600px;
+  }
+
   .graph-controls {
     position: absolute;
-    top: 16px;
-    right: 16px;
+    bottom: 20px;
+    right: 20px;
     display: flex;
     gap: 6px;
     z-index: 10;
   }
 
   .graph-controls button {
-    width: 36px;
-    height: 36px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 20px;
     color: rgba(255, 255, 255, 0.8);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s, transform 0.2s;
+    transition: all 0.2s;
   }
 
   .graph-controls button:hover {
     background: rgba(255, 255, 255, 0.15);
-    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
   }
 
   .graph-legend {
     position: absolute;
-    top: 16px;
-    left: 16px;
+    bottom: 20px;
+    left: 20px;
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
     z-index: 10;
-    background: rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    font-size: 11px;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
   }
 
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     color: rgba(255, 255, 255, 0.8);
     font-weight: 500;
   }
 
   .legend-hub {
-    padding-right: 8px;
-    margin-right: 4px;
-    border-right: 1px solid rgba(255, 255, 255, 0.15);
+    padding-right: 10px;
+    margin-right: 6px;
+    border-right: 1px solid rgba(255, 255, 255, 0.2);
   }
 
   .legend-dot {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
+    box-shadow: 0 0 6px currentColor;
   }
 
   .graph-tooltip {
-    position: absolute;
-    padding: 12px 16px;
-    background: rgba(15, 15, 30, 0.95);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    position: fixed;
+    padding: 14px 18px;
+    background: rgba(10, 10, 20, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     color: #fff;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
     font-size: 13px;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.15s;
-    max-width: 260px;
-    z-index: 100;
-    line-height: 1.5;
+    transition: opacity 0.2s;
+    max-width: 280px;
+    z-index: 1000;
+    line-height: 1.6;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   }
 
   .graph-tooltip strong {
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     color: #a78bfa;
-    font-size: 14px;
+    font-size: 15px;
   }
 
   .graph-tooltip span {
-    color: rgba(255, 255, 255, 0.75);
+    color: rgba(255, 255, 255, 0.7);
   }
 
   :global(.nodes .node) {
     cursor: pointer;
+    transition: opacity 0.3s;
   }
 
   :global(.nodes .node:hover circle),
   :global(.nodes .node:hover path) {
-    filter: brightness(1.15);
+    filter: brightness(1.3) url(#glow);
+  }
+
+  :global(.links line) {
+    transition: opacity 0.3s;
   }
 
   @media (max-width: 768px) {
     .graph-legend {
       font-size: 10px;
-      padding: 8px 10px;
+      padding: 10px 12px;
       gap: 8px;
+      bottom: 70px;
     }
     .legend-dot {
-      width: 6px;
-      height: 6px;
+      width: 8px;
+      height: 8px;
+    }
+    .graph-controls {
+      bottom: 15px;
+      right: 15px;
+    }
+    .graph-controls button {
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
     }
   }
 </style>

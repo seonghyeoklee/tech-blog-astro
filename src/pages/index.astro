@@ -3,9 +3,7 @@ import { getCollection } from 'astro:content';
 import { ViewTransitions } from 'astro:transitions';
 import Analytics from '@vercel/analytics/astro';
 import BaseHead from '../components/BaseHead.astro';
-import Footer from '../components/Footer.astro';
 import Header from '../components/Header.astro';
-import StructuredData from '../components/StructuredData.astro';
 import WikiGraph from '../components/WikiGraph.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
 import fs from 'node:fs';
@@ -52,32 +50,6 @@ wikiWithRelated.forEach(wiki => {
 		});
 	}
 });
-
-const docs = [
-	{ name: 'Java', url: 'https://docs.oracle.com/en/java/', icon: 'java/java-original' },
-	{ name: 'Spring', url: 'https://docs.spring.io/spring-framework/reference/', icon: 'spring/spring-original' },
-	{ name: 'Spring Boot', url: 'https://docs.spring.io/spring-boot/docs/current/reference/html/', icon: 'spring/spring-original' },
-	{ name: 'JPA/Hibernate', url: 'https://docs.jboss.org/hibernate/orm/current/userguide/html_single/Hibernate_User_Guide.html', icon: 'hibernate/hibernate-original' },
-	{ name: 'MySQL', url: 'https://dev.mysql.com/doc/refman/8.0/en/', icon: 'mysql/mysql-original' },
-	{ name: 'Redis', url: 'https://redis.io/docs/', icon: 'redis/redis-original' },
-	{ name: 'Kafka', url: 'https://kafka.apache.org/documentation/', icon: 'apachekafka/apachekafka-original' },
-	{ name: 'Docker', url: 'https://docs.docker.com/', icon: 'docker/docker-original' },
-	{ name: 'Kubernetes', url: 'https://kubernetes.io/docs/home/', icon: 'kubernetes/kubernetes-original' },
-	{ name: 'AWS', url: 'https://docs.aws.amazon.com/', icon: 'amazonwebservices/amazonwebservices-plain-wordmark' },
-	{ name: 'JUnit 5', url: 'https://junit.org/junit5/docs/current/user-guide/', icon: 'junit/junit-original' },
-	{ name: 'Gradle', url: 'https://docs.gradle.org/current/userguide/userguide.html', icon: 'gradle/gradle-original' },
-];
-
-const resources = [
-	{ name: 'Baeldung', url: 'https://www.baeldung.com/', desc: 'Java/Spring 튜토리얼' },
-	{ name: 'Martin Fowler', url: 'https://martinfowler.com/', desc: '아키텍처/설계 패턴' },
-	{ name: 'Refactoring Guru', url: 'https://refactoring.guru/', desc: '디자인 패턴/리팩토링' },
-	{ name: 'Java Design Patterns', url: 'https://java-design-patterns.com/', desc: 'Java 디자인 패턴 예제' },
-	{ name: 'Spring Guides', url: 'https://spring.io/guides', desc: 'Spring 공식 가이드' },
-	{ name: 'DZone', url: 'https://dzone.com/java', desc: 'Java 개발자 커뮤니티' },
-	{ name: 'InfoQ', url: 'https://www.infoq.com/', desc: '소프트웨어 개발 트렌드' },
-	{ name: 'High Scalability', url: 'http://highscalability.com/', desc: '대규모 시스템 아키텍처' },
-];
 ---
 
 <!doctype html>
@@ -85,335 +57,123 @@ const resources = [
 	<head>
 		<ViewTransitions />
 		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-		<StructuredData
-			type="website"
-			title={SITE_TITLE}
-			description={SITE_DESCRIPTION}
-			url={Astro.url}
-		/>
 		<style>
-			/* Wiki Graph Section - Fullscreen Style */
-			.wiki-graph-section {
-				width: 100vw;
-				margin-left: calc(-50vw + 50%);
-				padding: 0;
-				background: linear-gradient(180deg, #0a0a12 0%, #12121f 50%, #0f0f1a 100%);
-				position: relative;
+			html, body {
 				overflow: hidden;
-				min-height: calc(100vh - 60px);
+				height: 100vh;
 			}
-			.wiki-graph-section::before {
-				content: '';
-				position: absolute;
-				top: 0;
-				left: 0;
-				right: 0;
-				height: 1px;
-				background: linear-gradient(90deg, transparent, rgba(168, 139, 250, 0.3), transparent);
-			}
-			.wiki-graph-section::after {
-				content: '';
-				position: absolute;
-				bottom: 0;
-				left: 0;
-				right: 0;
-				height: 1px;
-				background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.3), transparent);
-			}
-			.wiki-graph-header {
-				text-align: center;
-				padding: 2em 2em 1em;
-				position: relative;
-				z-index: 1;
-			}
-			.wiki-graph-header h2 {
-				font-size: 2.5em;
-				font-weight: 800;
-				margin-bottom: 0.4em;
-				background: linear-gradient(135deg, #fff 0%, #a78bfa 50%, #60a5fa 100%);
-				-webkit-background-clip: text;
-				-webkit-text-fill-color: transparent;
-				background-clip: text;
-				text-shadow: none;
-			}
-			.wiki-graph-header p {
-				font-size: 1.05em;
-				color: rgba(255, 255, 255, 0.6);
-				margin-bottom: 1em;
-			}
-			.wiki-link {
-				display: inline-flex;
-				align-items: center;
-				gap: 0.4em;
-				color: #a78bfa;
-				text-decoration: none;
-				font-size: 0.95em;
-				font-weight: 600;
-				padding: 0.5em 1.2em;
-				background: rgba(167, 139, 250, 0.1);
-				border: 1px solid rgba(167, 139, 250, 0.2);
-				border-radius: 20px;
-				transition: all 0.3s ease;
-			}
-			.wiki-link:hover {
-				gap: 0.6em;
-				background: rgba(167, 139, 250, 0.2);
-				border-color: rgba(167, 139, 250, 0.4);
-				box-shadow: 0 0 20px rgba(167, 139, 250, 0.3);
-			}
-
-			main {
-				width: 960px;
-				max-width: calc(100% - 2em);
-				margin: auto;
-				padding: 3em 1em 4em;
-			}
-
-			/* Section Headers */
-			.section-header {
-				margin-bottom: 2.5em;
-			}
-			.section-title {
-				font-size: 2em;
-				font-weight: 700;
-				margin-bottom: 0.5em;
-				color: rgb(var(--black));
-			}
-			.section-subtitle {
-				font-size: 1.05em;
-				color: rgb(var(--gray));
-			}
-
-			/* Grid Layout */
-			.grid {
-				display: grid;
-				grid-template-columns: 1fr 1fr;
-				gap: 2em;
-				margin-bottom: 2em;
-			}
-			@media (max-width: 768px) {
-				.grid {
-					grid-template-columns: 1fr;
-				}
-			}
-
-			/* Section Cards */
-			section {
-				background: var(--card-bg);
-				border: 1px solid rgba(var(--gray-light), 0.5);
-				border-radius: 20px;
-				padding: 2em;
-				transition: all 0.3s ease;
-				position: relative;
-			}
-			section::after {
-				content: '';
-				position: absolute;
-				inset: 0;
-				border-radius: 20px;
-				padding: 1px;
-				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.1) 0%, transparent 100%);
-				-webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-				-webkit-mask-composite: xor;
-				mask-composite: exclude;
-				pointer-events: none;
-				opacity: 0;
-				transition: opacity 0.3s ease;
-			}
-			section:hover::after {
-				opacity: 1;
-			}
-			section:hover {
-				transform: translateY(-2px);
-				box-shadow: 0 8px 32px rgba(var(--gray), 0.12);
-				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.2);
-			}
-			section h2 {
-				font-size: 1.1em;
-				font-weight: 700;
-				margin: 0 0 1.5em;
-				color: rgb(var(--black));
-				display: flex;
-				align-items: center;
-				gap: 0.5em;
-			}
-
-			/* Docs Grid */
-			.docs-grid {
-				display: grid;
-				grid-template-columns: repeat(6, 1fr);
-				gap: 1.2em;
-			}
-			@media (max-width: 768px) {
-				.docs-grid {
-					grid-template-columns: repeat(3, 1fr);
-					gap: 1em;
-				}
-			}
-			.doc-link {
+			body {
 				display: flex;
 				flex-direction: column;
-				align-items: center;
-				padding: 1.5em 1em;
-				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
-				border: 1px solid rgba(var(--gray-light), 0.3);
-				border-radius: 16px;
-				text-decoration: none;
-				color: rgb(var(--gray-dark));
-				font-size: 0.85em;
-				font-weight: 600;
-				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+			.universe-container {
+				flex: 1;
 				position: relative;
+				background: radial-gradient(ellipse at center, #0d0d1a 0%, #000008 100%);
 				overflow: hidden;
 			}
-			.doc-link::before {
-				content: '';
+			/* 별 배경 */
+			.stars {
 				position: absolute;
 				inset: 0;
-				background: linear-gradient(135deg, rgba(var(--accent-rgb, 91, 109, 255), 0.08) 0%, transparent 100%);
-				opacity: 0;
-				transition: opacity 0.3s ease;
+				z-index: 0;
 			}
-			.doc-link:hover::before {
-				opacity: 1;
-			}
-			.doc-link:hover {
-				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.4);
-				transform: translateY(-6px);
-				box-shadow: 0 8px 24px rgba(var(--gray), 0.15);
-			}
-			.doc-link:hover .doc-icon {
-				transform: scale(1.15) rotate(5deg);
-			}
-			.doc-icon {
-				width: 40px;
-				height: 40px;
-				margin-bottom: 0.8em;
-				transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-				position: relative;
-				z-index: 1;
-			}
-
-			/* Resources */
-			.resources-grid {
-				display: grid;
-				grid-template-columns: repeat(4, 1fr);
-				gap: 1.2em;
-			}
-			@media (max-width: 960px) {
-				.resources-grid {
-					grid-template-columns: repeat(2, 1fr);
-				}
-			}
-			@media (max-width: 520px) {
-				.resources-grid {
-					grid-template-columns: 1fr;
-				}
-			}
-			.resource-card {
-				display: block;
-				padding: 1.5em 1.5em;
-				background: linear-gradient(135deg, rgba(var(--gray-light), 0.15) 0%, rgba(var(--gray-light), 0.05) 100%);
-				border: 1px solid rgba(var(--gray-light), 0.3);
-				border-radius: 16px;
-				text-decoration: none;
-				transition: all 0.3s ease;
-				position: relative;
-			}
-			.resource-card::before {
-				content: '';
+			.star {
 				position: absolute;
-				top: 0;
-				left: 0;
-				width: 3px;
-				height: 0;
-				background: linear-gradient(180deg, var(--accent) 0%, rgba(var(--accent-rgb, 91, 109, 255), 0.3) 100%);
-				border-radius: 0 2px 2px 0;
-				transition: height 0.3s ease;
+				background: #fff;
+				border-radius: 50%;
+				animation: twinkle var(--duration, 3s) ease-in-out infinite;
+				animation-delay: var(--delay, 0s);
 			}
-			.resource-card:hover::before {
-				height: 100%;
+			@keyframes twinkle {
+				0%, 100% { opacity: var(--min-opacity, 0.3); transform: scale(1); }
+				50% { opacity: 1; transform: scale(1.2); }
 			}
-			.resource-card:hover {
-				background: rgba(var(--gray-light), 0.25);
-				border-color: rgba(var(--accent-rgb, 91, 109, 255), 0.2);
-				transform: translateX(6px);
-				box-shadow: 0 4px 16px rgba(var(--gray), 0.1);
+			/* 은하수 효과 */
+			.milky-way {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				width: 200%;
+				height: 60%;
+				transform: translate(-50%, -50%) rotate(-15deg);
+				background: radial-gradient(ellipse, rgba(100, 100, 180, 0.08) 0%, transparent 60%);
+				pointer-events: none;
+				z-index: 0;
 			}
-			.resource-name {
-				color: rgb(var(--black));
-				font-weight: 700;
-				font-size: 1.05em;
-				margin-bottom: 0.4em;
+			/* 성운 효과 */
+			.nebula {
+				position: absolute;
+				border-radius: 50%;
+				filter: blur(80px);
+				opacity: 0.15;
+				animation: nebula-pulse 20s ease-in-out infinite;
+				z-index: 0;
 			}
-			.resource-desc {
-				font-size: 0.85em;
-				color: rgb(var(--gray));
-				line-height: 1.5;
+			.nebula-1 {
+				width: 500px;
+				height: 500px;
+				background: radial-gradient(circle, rgba(138, 43, 226, 0.4) 0%, transparent 70%);
+				top: 10%;
+				left: 10%;
+				animation-delay: 0s;
 			}
-
-			.full-width {
-				grid-column: 1 / -1;
+			.nebula-2 {
+				width: 400px;
+				height: 400px;
+				background: radial-gradient(circle, rgba(30, 144, 255, 0.3) 0%, transparent 70%);
+				bottom: 20%;
+				right: 15%;
+				animation-delay: -7s;
 			}
-
-			/* Responsive Design */
-			@media (max-width: 768px) {
-				.wiki-graph-section {
-					padding: 2em 1em;
-				}
-				.wiki-graph-header h2 {
-					font-size: 1.8em;
-				}
-				.wiki-graph-header p {
-					font-size: 0.95em;
-				}
-				.section-title {
-					font-size: 1.6em;
-				}
+			.nebula-3 {
+				width: 300px;
+				height: 300px;
+				background: radial-gradient(circle, rgba(255, 105, 180, 0.25) 0%, transparent 70%);
+				top: 60%;
+				left: 60%;
+				animation-delay: -14s;
+			}
+			@keyframes nebula-pulse {
+				0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.15; }
+				50% { transform: scale(1.1) translate(10px, -10px); opacity: 0.2; }
 			}
 		</style>
 	</head>
 	<body>
 		<Header />
-
-		<!-- Wiki Knowledge Graph -->
-		<div class="wiki-graph-section">
-			<div class="wiki-graph-header">
-				<h2>Knowledge Graph</h2>
-				<p>개념들이 어떻게 연결되어 있는지 확인하세요. 노드를 클릭하면 해당 위키로 이동합니다.</p>
-				<a href="/wiki" class="wiki-link">Wiki 전체보기 →</a>
-			</div>
-			<WikiGraph nodes={graphNodes} links={graphLinks} />
+		<div class="universe-container">
+			<div class="stars" id="stars"></div>
+			<div class="milky-way"></div>
+			<div class="nebula nebula-1"></div>
+			<div class="nebula nebula-2"></div>
+			<div class="nebula nebula-3"></div>
+			<WikiGraph nodes={graphNodes} links={graphLinks} fullscreen={true} />
 		</div>
-
-		<main>
-			<div class="grid">
-				<section class="full-width">
-					<h2>📚 공식 문서</h2>
-					<div class="docs-grid">
-						{docs.map((doc) => (
-							<a href={doc.url} target="_blank" rel="noopener" class="doc-link">
-								<img src={`https://cdn.jsdelivr.net/gh/devicons/devicon/icons/${doc.icon}.svg`} alt={doc.name} class="doc-icon" />
-								<span>{doc.name}</span>
-							</a>
-						))}
-					</div>
-				</section>
-
-				<section class="full-width">
-					<h2>🔗 추천 리소스</h2>
-					<div class="resources-grid">
-						{resources.map((res) => (
-							<a href={res.url} target="_blank" rel="noopener" class="resource-card">
-								<div class="resource-name">{res.name}</div>
-								<div class="resource-desc">{res.desc}</div>
-							</a>
-						))}
-					</div>
-				</section>
-			</div>
-		</main>
-		<Footer />
 		<Analytics />
+		<script>
+			// 별 생성
+			function createStars() {
+				const container = document.getElementById('stars');
+				if (!container) return;
+				container.innerHTML = '';
+				const count = 150;
+				for (let i = 0; i < count; i++) {
+					const star = document.createElement('div');
+					star.className = 'star';
+					const size = Math.random() * 2 + 1;
+					star.style.width = size + 'px';
+					star.style.height = size + 'px';
+					star.style.left = Math.random() * 100 + '%';
+					star.style.top = Math.random() * 100 + '%';
+					star.style.setProperty('--duration', (2 + Math.random() * 4) + 's');
+					star.style.setProperty('--delay', Math.random() * 5 + 's');
+					star.style.setProperty('--min-opacity', (0.2 + Math.random() * 0.3).toString());
+					container.appendChild(star);
+				}
+			}
+			createStars();
+			document.addEventListener('astro:page-load', createStars);
+		</script>
 	</body>
 </html>
