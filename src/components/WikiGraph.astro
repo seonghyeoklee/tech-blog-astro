@@ -34,7 +34,6 @@ const categoryColors: Record<string, string> = {
     <div class="gradient-orb orb-1"></div>
     <div class="gradient-orb orb-2"></div>
     <div class="gradient-orb orb-3"></div>
-    <div class="mesh-overlay"></div>
   </div>
   <div class="particles" id="particles"></div>
   <div class="graph-controls">
@@ -69,7 +68,17 @@ const categoryColors: Record<string, string> = {
 <script>
   import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
+  // 정리할 리소스 저장
+  let cleanupFns: (() => void)[] = [];
+
+  function cleanup() {
+    cleanupFns.forEach(fn => fn());
+    cleanupFns = [];
+  }
+
   function initGraph() {
+    cleanup(); // 이전 인스턴스 정리
+
     const dataEl = document.getElementById('graph-data');
     if (!dataEl) return;
 
@@ -81,7 +90,6 @@ const categoryColors: Record<string, string> = {
     const svg = d3.select('#wiki-graph');
     const tooltip = d3.select('#tooltip');
 
-    // 기존 내용 제거 (중복 방지)
     svg.selectAll('*').remove();
 
     const width = container.clientWidth;
@@ -100,15 +108,13 @@ const categoryColors: Record<string, string> = {
     svg.call(zoom as any);
 
     // 줌 버튼
-    d3.select('#zoom-in').on('click', () => {
-      svg.transition().call(zoom.scaleBy as any, 1.3);
-    });
-    d3.select('#zoom-out').on('click', () => {
-      svg.transition().call(zoom.scaleBy as any, 0.7);
-    });
-    d3.select('#zoom-reset').on('click', () => {
-      svg.transition().call(zoom.transform as any, d3.zoomIdentity);
-    });
+    const zoomInBtn = d3.select('#zoom-in');
+    const zoomOutBtn = d3.select('#zoom-out');
+    const zoomResetBtn = d3.select('#zoom-reset');
+
+    zoomInBtn.on('click', () => svg.transition().duration(300).call(zoom.scaleBy as any, 1.3));
+    zoomOutBtn.on('click', () => svg.transition().duration(300).call(zoom.scaleBy as any, 0.7));
+    zoomResetBtn.on('click', () => svg.transition().duration(300).call(zoom.transform as any, d3.zoomIdentity));
 
     // 노드별 연결 수 계산
     const nodeDegree: Record<string, number> = {};
@@ -120,42 +126,31 @@ const categoryColors: Record<string, string> = {
       nodeDegree[targetId] = (nodeDegree[targetId] || 0) + 1;
     });
 
-    // 허브 노드 판별 (연결 3개 이상)
+    // 허브 노드 판별
     const hubThreshold = 3;
     nodes.forEach((d: any) => {
       d.degree = nodeDegree[d.id] || 0;
       d.isHub = d.degree >= hubThreshold;
     });
 
-    // 노드 초기 위치 랜덤 설정
+    // 노드 초기 위치
     nodes.forEach((d: any) => {
       d.x = width / 2 + (Math.random() - 0.5) * 200;
       d.y = height / 2 + (Math.random() - 0.5) * 200;
     });
 
-    // Force 시뮬레이션
+    // Force 시뮬레이션 (최적화: alphaDecay 증가)
     const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(120).strength(0.5))
-      .force('charge', d3.forceManyBody().strength(-400))
+      .force('link', d3.forceLink(links).id((d: any) => d.id).distance(100).strength(0.4))
+      .force('charge', d3.forceManyBody().strength(-300))
       .force('center', d3.forceCenter(width / 2, height / 2))
-      .force('collision', d3.forceCollide().radius(50))
+      .force('collision', d3.forceCollide().radius(40))
       .force('x', d3.forceX(width / 2).strength(0.05))
       .force('y', d3.forceY(height / 2).strength(0.05))
-      .alphaDecay(0.02)
-      .velocityDecay(0.3);
+      .alphaDecay(0.028)
+      .velocityDecay(0.35);
 
-    // 링크 그리기
-    const link = g.append('g')
-      .attr('class', 'links')
-      .selectAll('line')
-      .data(links)
-      .join('line')
-      .attr('stroke', 'url(#link-gradient)')
-      .attr('stroke-width', 2)
-      .attr('stroke-opacity', 0.5)
-      .style('filter', 'drop-shadow(0 0 2px rgba(100, 150, 255, 0.3))');
-
-    // 링크 그라데이션 정의
+    // 링크 그라데이션
     const defs = svg.append('defs');
     const gradient = defs.append('linearGradient')
       .attr('id', 'link-gradient')
@@ -164,17 +159,15 @@ const categoryColors: Record<string, string> = {
     gradient.append('stop').attr('offset', '50%').attr('stop-color', '#a78bfa');
     gradient.append('stop').attr('offset', '100%').attr('stop-color', '#60a5fa');
 
-    // 링크 펄스 애니메이션
-    function animateLinks() {
-      link.transition()
-        .duration(3000)
-        .attr('stroke-opacity', 0.7)
-        .transition()
-        .duration(3000)
-        .attr('stroke-opacity', 0.4)
-        .on('end', animateLinks);
-    }
-    animateLinks();
+    // 링크 그리기
+    const link = g.append('g')
+      .attr('class', 'links')
+      .selectAll('line')
+      .data(links)
+      .join('line')
+      .attr('stroke', 'url(#link-gradient)')
+      .attr('stroke-width', 1.5)
+      .attr('stroke-opacity', 0.4);
 
     // 노드 그룹
     const node = g.append('g')
@@ -199,7 +192,7 @@ const categoryColors: Record<string, string> = {
           d.fy = null;
         }) as any);
 
-    // 육각형 path 생성 함수
+    // 육각형 path
     const hexagonPath = (size: number) => {
       const angles = [0, 60, 120, 180, 240, 300].map(a => a * Math.PI / 180);
       return angles.map((angle, i) => {
@@ -209,26 +202,23 @@ const categoryColors: Record<string, string> = {
       }).join('') + 'Z';
     };
 
-    // 노드 모양 (허브: 육각형, 일반: 원)
+    // 노드 모양
     node.each(function(d: any) {
       const el = d3.select(this);
-      const size = d.id === currentWikiId ? 22 : (d.isHub ? 20 : 15);
+      const size = d.id === currentWikiId ? 22 : (d.isHub ? 18 : 14);
       const color = categoryColors[d.category] || '#6b7280';
       const strokeColor = d.id === currentWikiId ? '#1f2937' : '#fff';
-      const strokeWidth = d.id === currentWikiId ? 3 : 2;
+      const strokeWidth = d.id === currentWikiId ? 3 : 1.5;
 
       if (d.isHub) {
-        // 허브 노드: 육각형 + 글로우
         el.append('path')
           .attr('class', 'hub-node')
           .attr('d', hexagonPath(size))
           .attr('fill', color)
           .attr('stroke', strokeColor)
           .attr('stroke-width', strokeWidth)
-          .style('cursor', 'pointer')
-          .style('filter', `drop-shadow(0 0 8px ${color}) drop-shadow(0 2px 4px rgba(0,0,0,0.3))`);
+          .style('cursor', 'pointer');
       } else {
-        // 일반 노드: 원
         el.append('circle')
           .attr('r', size)
           .attr('fill', color)
@@ -242,12 +232,11 @@ const categoryColors: Record<string, string> = {
     node.append('text')
       .text((d: any) => d.term.length > 10 ? d.term.slice(0, 10) + '...' : d.term)
       .attr('x', 0)
-      .attr('y', (d: any) => d.isHub ? 35 : 30)
+      .attr('y', (d: any) => d.isHub ? 32 : 28)
       .attr('text-anchor', 'middle')
-      .attr('font-size', (d: any) => d.isHub ? '12px' : '11px')
+      .attr('font-size', (d: any) => d.isHub ? '11px' : '10px')
       .attr('fill', 'rgba(255, 255, 255, 0.9)')
-      .attr('font-weight', (d: any) => (d.id === currentWikiId || d.isHub) ? '600' : '500')
-      .style('text-shadow', '0 1px 3px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 0, 0, 0.3)');
+      .attr('font-weight', (d: any) => (d.id === currentWikiId || d.isHub) ? '600' : '500');
 
     // 호버 효과
     node.on('mouseover', (event: any, d: any) => {
@@ -257,7 +246,6 @@ const categoryColors: Record<string, string> = {
         .style('left', (event.pageX + 10) + 'px')
         .style('top', (event.pageY - 10) + 'px');
 
-      // 연결된 노드 강조
       const connectedIds = new Set<string>();
       links.forEach((l: any) => {
         if (l.source.id === d.id || l.source === d.id) connectedIds.add(typeof l.target === 'object' ? l.target.id : l.target);
@@ -265,17 +253,17 @@ const categoryColors: Record<string, string> = {
       });
       connectedIds.add(d.id);
 
-      node.style('opacity', (n: any) => connectedIds.has(n.id) ? 1 : 0.2);
+      node.style('opacity', (n: any) => connectedIds.has(n.id) ? 1 : 0.15);
       link.style('opacity', (l: any) => {
         const sourceId = typeof l.source === 'object' ? l.source.id : l.source;
         const targetId = typeof l.target === 'object' ? l.target.id : l.target;
-        return sourceId === d.id || targetId === d.id ? 1 : 0.1;
+        return sourceId === d.id || targetId === d.id ? 0.8 : 0.05;
       });
     })
     .on('mouseout', () => {
       tooltip.style('opacity', 0);
       node.style('opacity', 1);
-      link.style('opacity', 0.6);
+      link.style('opacity', 0.4);
     })
     .on('click', (_: any, d: any) => {
       window.location.href = `/wiki/${d.id}`;
@@ -292,92 +280,77 @@ const categoryColors: Record<string, string> = {
       node.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
     });
 
-    // 시뮬레이션이 멈추지 않고 계속 살아있도록 설정
-    simulation.on('end', () => {
-      // 시뮬레이션이 끝나면 약하게 다시 시작
-      setTimeout(() => {
-        simulation.alpha(0.03).restart();
-      }, 2000);
-    });
-
-    // 시뮬레이션 시작 (처음에 활발하게 움직이도록)
+    // 시뮬레이션 시작
     simulation.alpha(1).restart();
 
-    // 주기적으로 랜덤한 노드에 작은 힘 가하기 (살아있는 느낌)
-    setInterval(() => {
-      const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
-      if (randomNode && !randomNode.fx) {
-        randomNode.vx += (Math.random() - 0.5) * 2;
-        randomNode.vy += (Math.random() - 0.5) * 2;
-        simulation.alpha(0.1).restart();
+    // Intersection Observer로 보일 때만 애니메이션
+    let isVisible = true;
+    let animationInterval: number | null = null;
+
+    const visibilityObserver = new IntersectionObserver((entries) => {
+      isVisible = entries[0].isIntersecting;
+      if (isVisible && !animationInterval) {
+        startAnimations();
+      } else if (!isVisible && animationInterval) {
+        stopAnimations();
       }
-    }, 3000);
+    }, { threshold: 0.1 });
 
-    // 허브 노드 펄스 애니메이션
-    node.selectAll('path').each(function() {
-      const el = d3.select(this);
-      function pulse() {
-        el.transition()
-          .duration(2000)
-          .attr('transform', 'scale(1.1)')
-          .transition()
-          .duration(2000)
-          .attr('transform', 'scale(1)')
-          .on('end', pulse);
-      }
-      pulse();
-    });
+    visibilityObserver.observe(container);
+    cleanupFns.push(() => visibilityObserver.disconnect());
 
-    // 일반 노드 부드러운 숨쉬기 애니메이션
-    node.selectAll('circle').each(function(d: any) {
-      const el = d3.select(this);
-      const baseR = d.id === currentWikiId ? 22 : 15;
-      const delay = Math.random() * 2000;
-
-      function breathe() {
-        el.transition()
-          .delay(delay)
-          .duration(2500 + Math.random() * 1000)
-          .attr('r', baseR * 1.08)
-          .transition()
-          .duration(2500 + Math.random() * 1000)
-          .attr('r', baseR)
-          .on('end', breathe);
-      }
-      breathe();
-    });
-
-    // 그래프가 보일 때 시뮬레이션 재시작 (hidden에서 visible로 전환 시)
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          const graphView = document.getElementById('graph-view');
-          if (graphView && !graphView.classList.contains('hidden')) {
-            simulation.alpha(0.5).restart();
-          }
+    function startAnimations() {
+      // 주기적 움직임 (5초마다)
+      animationInterval = window.setInterval(() => {
+        if (!isVisible) return;
+        const randomNode = nodes[Math.floor(Math.random() * nodes.length)];
+        if (randomNode && !randomNode.fx) {
+          randomNode.vx += (Math.random() - 0.5) * 1.5;
+          randomNode.vy += (Math.random() - 0.5) * 1.5;
+          simulation.alpha(0.08).restart();
         }
-      });
-    });
-
-    const graphView = document.getElementById('graph-view');
-    if (graphView) {
-      observer.observe(graphView, { attributes: true });
+      }, 5000);
     }
 
-    // 파티클 생성
+    function stopAnimations() {
+      if (animationInterval) {
+        clearInterval(animationInterval);
+        animationInterval = null;
+      }
+    }
+
+    startAnimations();
+    cleanupFns.push(stopAnimations);
+
+    // 시뮬레이션 종료 시 부드럽게 재시작
+    simulation.on('end', () => {
+      if (isVisible) {
+        setTimeout(() => simulation.alpha(0.02).restart(), 3000);
+      }
+    });
+
+    // 파티클 생성 (15개로 감소)
     const particlesContainer = document.getElementById('particles');
     if (particlesContainer) {
       particlesContainer.innerHTML = '';
-      for (let i = 0; i < 30; i++) {
+      for (let i = 0; i < 15; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
         particle.style.left = Math.random() * 100 + '%';
         particle.style.top = Math.random() * 100 + '%';
-        particle.style.animationDelay = Math.random() * 4 + 's';
-        particle.style.animationDuration = (3 + Math.random() * 3) + 's';
+        particle.style.animationDelay = Math.random() * 5 + 's';
+        particle.style.animationDuration = (4 + Math.random() * 4) + 's';
         particlesContainer.appendChild(particle);
       }
     }
+
+    // 정리 함수 등록
+    cleanupFns.push(() => {
+      simulation.stop();
+      zoomInBtn.on('click', null);
+      zoomOutBtn.on('click', null);
+      zoomResetBtn.on('click', null);
+    });
   }
 
   // 초기화
@@ -399,80 +372,58 @@ const categoryColors: Record<string, string> = {
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     overflow: hidden;
-    box-shadow:
-      0 4px 24px rgba(0, 0, 0, 0.3),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   }
 
-  /* 배경 오브 애니메이션 */
   .graph-bg {
     position: absolute;
     inset: 0;
     overflow: hidden;
     z-index: 0;
+    will-change: transform;
   }
 
   .gradient-orb {
     position: absolute;
     border-radius: 50%;
-    filter: blur(80px);
-    opacity: 0.5;
-    animation: float 20s ease-in-out infinite;
+    filter: blur(60px);
+    opacity: 0.4;
+    animation: float 25s ease-in-out infinite;
+    will-change: transform;
   }
 
   .orb-1 {
-    width: 400px;
-    height: 400px;
-    background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+    width: 350px;
+    height: 350px;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.35) 0%, transparent 70%);
     top: -100px;
     left: -100px;
-    animation-delay: 0s;
   }
 
   .orb-2 {
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%);
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
     top: 50%;
     right: -80px;
-    animation-delay: -7s;
+    animation-delay: -8s;
   }
 
   .orb-3 {
-    width: 300px;
-    height: 300px;
-    background: radial-gradient(circle, rgba(34, 211, 238, 0.3) 0%, transparent 70%);
+    width: 250px;
+    height: 250px;
+    background: radial-gradient(circle, rgba(34, 211, 238, 0.25) 0%, transparent 70%);
     bottom: -50px;
     left: 30%;
-    animation-delay: -14s;
+    animation-delay: -16s;
   }
 
   @keyframes float {
-    0%, 100% {
-      transform: translate(0, 0) scale(1);
-    }
-    25% {
-      transform: translate(30px, -30px) scale(1.05);
-    }
-    50% {
-      transform: translate(-20px, 20px) scale(0.95);
-    }
-    75% {
-      transform: translate(20px, 10px) scale(1.02);
-    }
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(20px, -20px) scale(1.02); }
+    66% { transform: translate(-15px, 15px) scale(0.98); }
   }
 
-  /* 메쉬 오버레이 */
-  .mesh-overlay {
-    position: absolute;
-    inset: 0;
-    background-image:
-      radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-      radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-    background-size: 60px 60px;
-  }
-
-  /* 파티클 */
   .particles {
     position: absolute;
     inset: 0;
@@ -482,26 +433,17 @@ const categoryColors: Record<string, string> = {
 
   :global(.particle) {
     position: absolute;
-    width: 3px;
-    height: 3px;
-    background: rgba(255, 255, 255, 0.6);
+    width: 2px;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.5);
     border-radius: 50%;
-    animation: sparkle 4s ease-in-out infinite;
+    animation: sparkle 5s ease-in-out infinite;
+    will-change: transform, opacity;
   }
 
   @keyframes sparkle {
-    0%, 100% {
-      opacity: 0;
-      transform: scale(0) translateY(0);
-    }
-    50% {
-      opacity: 1;
-      transform: scale(1) translateY(-20px);
-    }
-  }
-
-  :global(.dark) .wiki-graph-container {
-    background: linear-gradient(135deg, #0a0a12 0%, #12121f 50%, #0a0a12 100%);
+    0%, 100% { opacity: 0; transform: translateY(0) scale(0); }
+    50% { opacity: 0.8; transform: translateY(-15px) scale(1); }
   }
 
   #wiki-graph {
@@ -528,8 +470,8 @@ const categoryColors: Record<string, string> = {
     height: 36px;
     border: 1px solid rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border-radius: 10px;
     cursor: pointer;
     font-size: 18px;
@@ -537,15 +479,12 @@ const categoryColors: Record<string, string> = {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: background 0.2s, transform 0.2s;
   }
 
   .graph-controls button:hover {
     background: rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.25);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
   }
 
   .graph-legend {
@@ -554,99 +493,84 @@ const categoryColors: Record<string, string> = {
     left: 16px;
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 10px;
     z-index: 10;
-    background: rgba(255, 255, 255, 0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 12px 16px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 12px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-  }
-
-  :global(.dark) .graph-legend {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11px;
   }
 
   .legend-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    color: rgba(255, 255, 255, 0.85);
+    gap: 5px;
+    color: rgba(255, 255, 255, 0.8);
     font-weight: 500;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .legend-hub {
-    padding-right: 10px;
-    margin-right: 6px;
+    padding-right: 8px;
+    margin-right: 4px;
     border-right: 1px solid rgba(255, 255, 255, 0.15);
   }
 
-  .legend-hub svg {
-    margin-right: 2px;
-    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.3));
-  }
-
   .legend-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
-    box-shadow: 0 0 8px currentColor;
   }
 
   .graph-tooltip {
     position: absolute;
-    padding: 14px 18px;
+    padding: 12px 16px;
     background: rgba(15, 15, 30, 0.95);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: #fff;
-    border-radius: 12px;
+    border-radius: 10px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     font-size: 13px;
     pointer-events: none;
     opacity: 0;
-    transition: opacity 0.2s;
-    max-width: 280px;
+    transition: opacity 0.15s;
+    max-width: 260px;
     z-index: 100;
-    line-height: 1.6;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    line-height: 1.5;
   }
 
   .graph-tooltip strong {
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
     color: #a78bfa;
     font-size: 14px;
-    text-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
   }
 
   .graph-tooltip span {
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.75);
   }
 
   :global(.nodes .node) {
     cursor: pointer;
   }
 
-  :global(.nodes .node:hover circle) {
-    filter: brightness(1.1);
+  :global(.nodes .node:hover circle),
+  :global(.nodes .node:hover path) {
+    filter: brightness(1.15);
   }
 
-  :global(.dark) .graph-controls button {
-    background: #1e293b;
-    border-color: #475569;
-    color: #e2e8f0;
-  }
-
-  :global(.dark) .graph-controls button:hover {
-    background: #334155;
-  }
-
-  :global(.dark) #wiki-graph text {
-    fill: #e2e8f0;
+  @media (max-width: 768px) {
+    .graph-legend {
+      font-size: 10px;
+      padding: 8px 10px;
+      gap: 8px;
+    }
+    .legend-dot {
+      width: 6px;
+      height: 6px;
+    }
   }
 </style>
