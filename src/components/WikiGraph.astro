@@ -228,6 +228,16 @@ const categoryColors: Record<string, string> = {
       }
     });
 
+    // 노드 텍스트
+    node.append('text')
+      .text((d: any) => d.term.length > 10 ? d.term.slice(0, 10) + '...' : d.term)
+      .attr('x', 0)
+      .attr('y', (d: any) => d.isHub ? 32 : 28)
+      .attr('text-anchor', 'middle')
+      .attr('font-size', (d: any) => d.isHub ? '11px' : '10px')
+      .attr('fill', 'rgba(255, 255, 255, 0.9)')
+      .attr('font-weight', (d: any) => (d.id === currentWikiId || d.isHub) ? '600' : '500');
+
     // 호버 효과
     node.on('mouseover', (event: any, d: any) => {
       tooltip
