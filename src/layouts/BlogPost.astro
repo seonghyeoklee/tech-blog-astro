@@ -25,18 +25,30 @@ const { title, description, pubDate, updatedDate, heroImage, headings, rawConten
 let seriesInfo = null;
 
 if (series) {
-	const seriesNames: Record<string, { name: string; description: string }> = {
-		'backend-cs-fundamentals': {
-			name: '백엔드 개발자를 위한 CS 기초',
-			description: '운영체제, 네트워크, 데이터베이스 등 백엔드 개발에 필수적인 컴퓨터 과학 기초 지식을 다룹니다.',
+	const seriesNames: Record<string, { name: string; icon: string }> = {
+		'operating-system-fundamentals': {
+			name: '운영체제',
+			icon: '🖥️',
 		},
 		'database-fundamentals': {
-			name: '데이터베이스 기초',
-			description: '트랜잭션, 인덱스, 쿼리 최적화 등 데이터베이스의 핵심 개념을 정리합니다.',
+			name: '데이터베이스',
+			icon: '🗄️',
 		},
-		'operating-system-fundamentals': {
-			name: '운영체제 기초',
-			description: '프로세스, 스레드, 메모리 관리, CPU 스케줄링 등 운영체제의 핵심 개념을 다룹니다.',
+		'network-fundamentals': {
+			name: '네트워크',
+			icon: '🌐',
+		},
+		'java-fundamentals': {
+			name: 'Java 심화',
+			icon: '☕',
+		},
+		'spring-fundamentals': {
+			name: 'Spring 핵심',
+			icon: '🌱',
+		},
+		'tech-tradeoffs': {
+			name: '기술 선택의 기준',
+			icon: '⚖️',
 		},
 	};
 
@@ -196,7 +208,7 @@ if (series) {
 					{seriesInfo && (
 						<div class="series-info">
 							<div class="series-badge">
-								<span class="series-icon">📚</span>
+								<span class="series-icon">{seriesInfo.icon}</span>
 								<div class="series-text">
 									<a href={`/series/${series}`} class="series-link">
 										{seriesInfo.name}
