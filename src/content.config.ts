@@ -27,8 +27,9 @@ const wiki = defineCollection({
 	schema: z.object({
 		term: z.string(),
 		aliases: z.array(z.string()).optional(),
-		category: z.enum(['database', 'java', 'spring', 'architecture', 'infra', 'general']),
+		category: z.enum(['database', 'java', 'kotlin', 'spring', 'architecture', 'infra', 'general']),
 		summary: z.string(),
+		related: z.array(z.string()).optional(),
 	}),
 });
 
