@@ -89,13 +89,6 @@ import Search from './Search.astro';
 		});
 	}
 
-	// 초기화
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', initMobileMenu);
-	} else {
-		initMobileMenu();
-	}
-
 	// View Transitions 대응
 	document.addEventListener('astro:page-load', initMobileMenu);
 </script>

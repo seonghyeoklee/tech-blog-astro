@@ -191,13 +191,6 @@ Object.values(categories).forEach(cat => {
 				searchInput.addEventListener('input', handleSearch);
 			}
 
-			// 초기화
-			if (document.readyState === 'loading') {
-				document.addEventListener('DOMContentLoaded', initSearch);
-			} else {
-				initSearch();
-			}
-
 			// View Transitions 대응
 			document.addEventListener('astro:page-load', initSearch);
 		</script>

@@ -88,7 +88,7 @@ const filteredHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
 </style>
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('astro:page-load', () => {
     const tocLinks = document.querySelectorAll('.toc-item a');
     const headings = Array.from(tocLinks).map(link => {
       const id = link.getAttribute('href')?.slice(1);

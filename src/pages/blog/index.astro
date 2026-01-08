@@ -206,7 +206,7 @@ const allTags = ['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL'
 		<Footer />
 
 		<script>
-			document.addEventListener('DOMContentLoaded', () => {
+			document.addEventListener('astro:page-load', () => {
 				const filterBtns = document.querySelectorAll('.filter-btn');
 				const blogCards = document.querySelectorAll('.blog-card');
 				const postCount = document.getElementById('post-count');

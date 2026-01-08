@@ -602,7 +602,7 @@ const totalQuizzes = selectedQuizzes.length;
 	}
 
 	// 이벤트 리스너 등록
-	document.addEventListener('DOMContentLoaded', () => {
+	document.addEventListener('astro:page-load', () => {
 		// 옵션 클릭
 		document.querySelectorAll('.quiz-option').forEach((button) => {
 			button.addEventListener('click', handleOptionClick);

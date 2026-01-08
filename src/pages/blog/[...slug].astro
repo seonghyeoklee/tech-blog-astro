@@ -123,7 +123,7 @@ const { Content, headings } = await render(post);
 
 <script>
 	// 퀴즈 모달 열기
-	document.addEventListener('DOMContentLoaded', () => {
+	document.addEventListener('astro:page-load', () => {
 		const triggerBtn = document.getElementById('quiz-trigger-btn');
 		const modalOverlay = document.getElementById('quiz-modal-overlay');
 

@@ -349,12 +349,6 @@ const categoryColors: Record<string, string> = {
     });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initGraph);
-  } else {
-    initGraph();
-  }
-
   document.addEventListener('astro:page-load', initGraph);
 </script>
 

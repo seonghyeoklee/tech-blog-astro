@@ -122,11 +122,6 @@ wikiWithRelated.forEach(wiki => {
 				}
 			}
 
-			if (document.readyState === 'loading') {
-				document.addEventListener('DOMContentLoaded', createStars);
-			} else {
-				createStars();
-			}
 			document.addEventListener('astro:page-load', createStars);
 		</script>
 	</body>

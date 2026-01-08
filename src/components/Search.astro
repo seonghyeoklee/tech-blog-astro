@@ -61,7 +61,7 @@
 <link href="https://cdn.jsdelivr.net/npm/@pagefind/default-ui@latest/css/ui.css" rel="stylesheet">
 
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('astro:page-load', () => {
     const searchBtn = document.getElementById('search-btn');
     const modal = document.getElementById('search-modal');
     let pagefindLoaded = false;

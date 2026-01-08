@@ -11,7 +11,7 @@ const terms = wiki.map(w => ({
 ---
 
 <script define:vars={{ terms }}>
-	document.addEventListener('DOMContentLoaded', () => {
+	document.addEventListener('astro:page-load', () => {
 		const content = document.querySelector('.prose');
 		if (!content) return;
 
