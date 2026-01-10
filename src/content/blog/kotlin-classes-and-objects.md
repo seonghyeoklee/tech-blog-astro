@@ -9,7 +9,7 @@ seriesOrder: 4
 
 ## 클래스 기본
 
-코틀린에서 클래스를 선언하는 방법이다.
+코틀린에서 클래스를 선언하는 방법입니다.
 
 ```kotlin
 class User {
@@ -18,7 +18,7 @@ class User {
 }
 ```
 
-인스턴스를 만들 때 `new` 키워드가 필요 없다.
+인스턴스를 만들 때 `new` 키워드가 필요 없습니다.
 
 ```kotlin
 val user = User()
@@ -28,13 +28,13 @@ user.age = 25
 
 ## 주 생성자
 
-클래스 이름 옆에 생성자를 선언할 수 있다. 이걸 주 생성자(primary constructor)라고 한다.
+클래스 이름 옆에 생성자를 선언할 수 있습니다. 이걸 주 생성자(primary constructor)라고 합니다.
 
 ```kotlin
 class User(val name: String, val age: Int)
 ```
 
-이게 끝이다. 프로퍼티 선언과 생성자가 합쳐졌다. Java로 치면 이 코드와 같다.
+이게 끝입니다. 프로퍼티 선언과 생성자가 합쳐졌습니다. Java로 치면 이 코드와 같습니다.
 
 ```java
 public class User {
@@ -51,11 +51,11 @@ public class User {
 }
 ```
 
-코틀린 한 줄이 Java 열 줄 넘게를 대체한다.
+코틀린 한 줄이 Java 열 줄 넘게를 대체합니다.
 
 ### val과 var
 
-생성자 파라미터에 `val`을 붙이면 읽기 전용 프로퍼티, `var`를 붙이면 수정 가능한 프로퍼티가 된다.
+생성자 파라미터에 `val`을 붙이면 읽기 전용 프로퍼티, `var`를 붙이면 수정 가능한 프로퍼티가 됩니다.
 
 ```kotlin
 class User(
@@ -71,7 +71,7 @@ user.id = 2         // 컴파일 에러!
 
 ### 기본값
 
-파라미터에 기본값을 지정할 수 있다.
+파라미터에 기본값을 지정할 수 있습니다.
 
 ```kotlin
 class User(
@@ -85,11 +85,11 @@ val user2 = User("Park", 30)
 val user3 = User("Lee", email = "lee@example.com")  // named argument
 ```
 
-Java의 빌더 패턴이나 여러 생성자 오버로딩이 필요 없어진다.
+Java의 빌더 패턴이나 여러 생성자 오버로딩이 필요 없어집니다.
 
 ## init 블록
 
-주 생성자에서 로직을 실행하려면 `init` 블록을 쓴다.
+주 생성자에서 로직을 실행하려면 `init` 블록을 씁니다.
 
 ```kotlin
 class User(val name: String, val age: Int) {
@@ -100,11 +100,11 @@ class User(val name: String, val age: Int) {
 }
 ```
 
-`init` 블록은 인스턴스가 생성될 때 실행된다. 여러 개 있으면 순서대로 실행된다.
+`init` 블록은 인스턴스가 생성될 때 실행됩니다. 여러 개 있으면 순서대로 실행됩니다.
 
 ## 보조 생성자
 
-주 생성자 외에 추가 생성자가 필요하면 `constructor` 키워드를 쓴다.
+주 생성자 외에 추가 생성자가 필요하면 `constructor` 키워드를 씁니다.
 
 ```kotlin
 class User(val name: String, val age: Int) {
@@ -113,11 +113,11 @@ class User(val name: String, val age: Int) {
 }
 ```
 
-보조 생성자는 반드시 주 생성자를 호출해야 한다. 하지만 기본값을 쓰면 보조 생성자가 거의 필요 없다.
+보조 생성자는 반드시 주 생성자를 호출해야 합니다. 하지만 기본값을 쓰면 보조 생성자가 거의 필요 없습니다.
 
 ## data class
 
-DTO나 값 객체를 만들 때 쓴다. equals, hashCode, toString, copy가 자동 생성된다.
+DTO나 값 객체를 만들 때 씁니다. equals, hashCode, toString, copy가 자동 생성됩니다.
 
 ```kotlin
 data class User(
@@ -140,7 +140,7 @@ println(user1)               // User(id=1, name=Kim, email=kim@example.com)
 
 ### copy 함수
 
-일부 프로퍼티만 바꾼 새 객체를 만든다.
+일부 프로퍼티만 바꾼 새 객체를 만듭니다.
 
 ```kotlin
 val user1 = User(1, "Kim", "kim@example.com")
@@ -149,7 +149,7 @@ val user2 = user1.copy(name = "Park")
 println(user2)  // User(id=1, name=Park, email=kim@example.com)
 ```
 
-불변 객체를 다룰 때 유용하다.
+불변 객체를 다룰 때 유용합니다.
 
 ### Spring에서의 활용: DTO
 
@@ -177,11 +177,11 @@ data class UserResponse(
 }
 ```
 
-Request/Response DTO를 data class로 만들면 간결하다.
+Request/Response DTO를 data class로 만들면 간결합니다.
 
 ## object 선언
 
-싱글톤을 만드는 가장 간단한 방법이다.
+싱글톤을 만드는 가장 간단한 방법입니다.
 
 ```kotlin
 object DatabaseConfig {
@@ -194,18 +194,18 @@ object DatabaseConfig {
 }
 ```
 
-`object`로 선언하면 인스턴스가 하나만 만들어진다. 클래스가 아니라 객체를 바로 선언하는 것이다.
+`object`로 선언하면 인스턴스가 하나만 만들어집니다. 클래스가 아니라 객체를 바로 선언하는 것입니다.
 
 ```kotlin
 DatabaseConfig.connect()  // 바로 사용
 println(DatabaseConfig.url)
 ```
 
-Java의 싱글톤 패턴을 언어 레벨에서 지원한다.
+Java의 싱글톤 패턴을 언어 레벨에서 지원합니다.
 
 ### 익명 객체
 
-인터페이스나 추상 클래스의 일회용 구현체를 만들 때 쓴다.
+인터페이스나 추상 클래스의 일회용 구현체를 만들 때 씁니다.
 
 ```kotlin
 val comparator = object : Comparator<String> {
@@ -215,11 +215,11 @@ val comparator = object : Comparator<String> {
 }
 ```
 
-Java의 익명 클래스와 비슷하다.
+Java의 익명 클래스와 비슷합니다.
 
 ## companion object
 
-클래스 안에 정적 멤버를 넣을 때 쓴다. 코틀린에는 `static` 키워드가 없다.
+클래스 안에 정적 멤버를 넣을 때 씁니다. 코틀린에는 `static` 키워드가 없습니다.
 
 ```kotlin
 class User(val name: String) {
@@ -238,7 +238,7 @@ val user = User.create("Kim")
 println(User.MAX_NAME_LENGTH)
 ```
 
-`companion object`는 클래스당 하나만 있을 수 있다.
+`companion object`는 클래스당 하나만 있을 수 있습니다.
 
 ### Spring에서의 활용: 팩토리 메서드
 
@@ -265,7 +265,7 @@ class Order private constructor(
 }
 ```
 
-생성자를 `private`으로 숨기고 팩토리 메서드를 제공하는 패턴이다.
+생성자를 `private`으로 숨기고 팩토리 메서드를 제공하는 패턴입니다.
 
 ### Logger 패턴
 
@@ -282,11 +282,11 @@ class UserService {
 }
 ```
 
-매 인스턴스마다 Logger를 만들지 않고 공유한다.
+매 인스턴스마다 Logger를 만들지 않고 공유합니다.
 
 ## 상속
 
-코틀린의 클래스는 기본적으로 `final`이다. 상속을 허용하려면 `open`을 붙여야 한다.
+코틀린의 클래스는 기본적으로 `final`입니다. 상속을 허용하려면 `open`을 붙여야 합니다.
 
 ```kotlin
 open class Animal(val name: String) {
@@ -302,11 +302,11 @@ class Dog(name: String) : Animal(name) {
 }
 ```
 
-메서드도 마찬가지로 `open`이 있어야 오버라이드할 수 있다.
+메서드도 마찬가지로 `open`이 있어야 오버라이드할 수 있습니다.
 
 ### Spring에서의 상속
 
-Spring에서는 프록시를 만들어야 해서 클래스가 `final`이면 문제가 된다. `kotlin-spring` 플러그인이 이걸 해결한다.
+Spring에서는 프록시를 만들어야 해서 클래스가 `final`이면 문제가 됩니다. `kotlin-spring` 플러그인이 이걸 해결합니다.
 
 ```kotlin
 // build.gradle.kts
@@ -315,7 +315,7 @@ plugins {
 }
 ```
 
-이 플러그인이 `@Component`, `@Service`, `@Repository`, `@Controller` 등이 붙은 클래스를 자동으로 `open`으로 만들어준다.
+이 플러그인이 `@Component`, `@Service`, `@Repository`, `@Controller` 등이 붙은 클래스를 자동으로 `open`으로 만들어줍니다.
 
 ## 추상 클래스와 인터페이스
 
@@ -353,7 +353,7 @@ class Circle : Drawable {
 }
 ```
 
-인터페이스도 기본 구현을 가질 수 있다. Java 8의 default 메서드와 같다.
+인터페이스도 기본 구현을 가질 수 있습니다. Java 8의 default 메서드와 같습니다.
 
 ### 다중 구현
 
@@ -376,7 +376,7 @@ class C : A, B {
 
 ## sealed class
 
-상속을 제한하고 싶을 때 쓴다. 같은 파일 안에서만 상속할 수 있다.
+상속을 제한하고 싶을 때 씁니다. 같은 파일 안에서만 상속할 수 있습니다.
 
 ```kotlin
 sealed class Result<out T> {
@@ -386,7 +386,7 @@ sealed class Result<out T> {
 }
 ```
 
-`when`과 함께 쓰면 강력하다.
+`when`과 함께 쓰면 강력합니다.
 
 ```kotlin
 fun handleResult(result: Result<User>) {
@@ -394,12 +394,12 @@ fun handleResult(result: Result<User>) {
         is Result.Success -> println("User: ${result.data}")
         is Result.Error -> println("Error: ${result.message}")
         is Result.Loading -> println("Loading...")
-        // else가 필요 없다! 모든 케이스를 다뤘으므로
+        // else가 필요 없습니다! 모든 케이스를 다뤘으므로
     }
 }
 ```
 
-모든 하위 타입을 컴파일러가 알고 있어서 `else`가 필요 없다. 새 하위 타입이 추가되면 컴파일 에러가 나서 누락을 방지한다.
+모든 하위 타입을 컴파일러가 알고 있어서 `else`가 필요 없습니다. 새 하위 타입이 추가되면 컴파일 에러가 나서 누락을 방지합니다.
 
 ### Spring에서의 활용: API 응답
 
@@ -433,9 +433,8 @@ class UserService(private val userRepository: UserRepository) {
 
 ## 정리
 
-- 주 생성자로 프로퍼티와 생성자를 한 번에 선언한다.
-- `data class`는 equals, hashCode, toString, copy를 자동 생성한다.
-- `object`는 싱글톤을, `companion object`는 정적 멤버를 만든다.
-- 클래스는 기본 `final`이다. 상속하려면 `open`이 필요하다.
-- `sealed class`는 상속을 제한하고 `when`에서 완전성 검사를 가능하게 한다.
-
+- 주 생성자로 프로퍼티와 생성자를 한 번에 선언합니다.
+- `data class`는 equals, hashCode, toString, copy를 자동 생성합니다.
+- `object`는 싱글톤을, `companion object`는 정적 멤버를 만듭니다.
+- 클래스는 기본 `final`입니다. 상속하려면 `open`이 필요합니다.
+- `sealed class`는 상속을 제한하고 `when`에서 완전성 검사를 가능하게 합니다.

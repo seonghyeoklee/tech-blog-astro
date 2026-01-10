@@ -9,21 +9,21 @@ seriesOrder: 3
 
 ## Null Safety가 왜 중요한가
 
-Java 개발자라면 NullPointerException을 수없이 만났을 것이다. Tony Hoare는 null 참조를 "10억 달러짜리 실수"라고 불렀다. 코틀린은 이 문제를 타입 시스템 레벨에서 해결한다.
+Java 개발자라면 NullPointerException을 수없이 만났을 것입니다. Tony Hoare는 null 참조를 "10억 달러짜리 실수"라고 불렀습니다. 코틀린은 이 문제를 타입 시스템 레벨에서 해결합니다.
 
 ```kotlin
 var name: String = "Kotlin"
 name = null  // 컴파일 에러!
 ```
 
-기본적으로 모든 타입은 null이 될 수 없다. null을 허용하려면 명시적으로 `?`를 붙여야 한다.
+기본적으로 모든 타입은 null이 될 수 없습니다. null을 허용하려면 명시적으로 `?`를 붙여야 합니다.
 
 ```kotlin
 var name: String? = "Kotlin"
 name = null  // OK
 ```
 
-이제 컴파일러가 null 가능성을 추적한다. nullable 타입을 그냥 쓰려고 하면 컴파일 에러가 난다.
+이제 컴파일러가 null 가능성을 추적합니다. nullable 타입을 그냥 쓰려고 하면 컴파일 에러가 납니다.
 
 ```kotlin
 val length = name.length  // 컴파일 에러! name이 null일 수 있음
@@ -31,20 +31,20 @@ val length = name.length  // 컴파일 에러! name이 null일 수 있음
 
 ## 안전 호출 연산자 ?.
 
-nullable 타입의 멤버에 안전하게 접근하는 방법이다.
+nullable 타입의 멤버에 안전하게 접근하는 방법입니다.
 
 ```kotlin
 val name: String? = getUserName()
 val length = name?.length  // name이 null이면 null, 아니면 length
 ```
 
-`?.`은 왼쪽이 null이면 null을 반환하고, 아니면 오른쪽을 실행한다. 체이닝도 가능하다.
+`?.`은 왼쪽이 null이면 null을 반환하고, 아니면 오른쪽을 실행합니다. 체이닝도 가능합니다.
 
 ```kotlin
 val city = user?.address?.city
 ```
 
-user가 null이거나 address가 null이면 city는 null이 된다. Java였다면 이렇게 썼을 것이다.
+user가 null이거나 address가 null이면 city는 null이 됩니다. Java였다면 이렇게 썼을 것입니다.
 
 ```java
 String city = null;
@@ -55,7 +55,7 @@ if (user != null && user.getAddress() != null) {
 
 ### Spring에서의 활용: Repository 조회
 
-Spring Data JPA에서 `findById`는 `Optional`을 반환한다. 코틀린에서는 이렇게 쓴다.
+Spring Data JPA에서 `findById`는 `Optional`을 반환합니다. 코틀린에서는 이렇게 씁니다.
 
 ```kotlin
 @Service
@@ -69,17 +69,17 @@ class UserService(
 }
 ```
 
-`findByIdOrNull`은 Spring Data의 코틀린 확장 함수다. Optional 대신 nullable 타입을 반환해서 코틀린스럽게 쓸 수 있다.
+`findByIdOrNull`은 Spring Data의 코틀린 확장 함수입니다. Optional 대신 nullable 타입을 반환해서 코틀린스럽게 쓸 수 있습니다.
 
 ## 엘비스 연산자 ?:
 
-null일 때 기본값을 지정한다.
+null일 때 기본값을 지정합니다.
 
 ```kotlin
 val name = userName ?: "Guest"
 ```
 
-userName이 null이면 "Guest"를 쓴다. Java의 삼항 연산자와 비슷하지만 더 간결하다.
+userName이 null이면 "Guest"를 씁니다. Java의 삼항 연산자와 비슷하지만 더 간결합니다.
 
 ```java
 // Java
@@ -107,7 +107,7 @@ class UserController(
 }
 ```
 
-엘비스 연산자 오른쪽에 throw를 쓸 수 있다. 값이 없으면 예외를 던지는 패턴이다.
+엘비스 연산자 오른쪽에 throw를 쓸 수 있습니다. 값이 없으면 예외를 던지는 패턴입니다.
 
 ```kotlin
 val user = userRepository.findByIdOrNull(id)
@@ -116,16 +116,16 @@ val user = userRepository.findByIdOrNull(id)
 
 ## Not-null 단언 연산자 !!
 
-"나는 이게 null이 아니라는 걸 확신한다"고 컴파일러에게 알려준다.
+"나는 이게 null이 아니라는 걸 확신한다"고 컴파일러에게 알려줍니다.
 
 ```kotlin
 val name: String? = "Kotlin"
 val length = name!!.length  // null이면 NPE 발생
 ```
 
-null이면 NullPointerException이 터진다. 코틀린의 Null Safety를 우회하는 것이라 **가능하면 쓰지 않는 게 좋다**.
+null이면 NullPointerException이 터집니다. 코틀린의 Null Safety를 우회하는 것이라 **가능하면 쓰지 않는 게 좋습니다**.
 
-그래도 쓸 때가 있다. 테스트 코드에서 자주 본다.
+그래도 쓸 때가 있습니다. 테스트 코드에서 자주 봅니다.
 
 ```kotlin
 @Test
@@ -137,17 +137,17 @@ fun `사용자 생성 테스트`() {
 }
 ```
 
-테스트에서는 null이면 어차피 실패해야 하니까 `!!`를 써도 괜찮다.
+테스트에서는 null이면 어차피 실패해야 하니까 `!!`를 써도 괜찮습니다.
 
 ## 안전한 캐스팅 as?
 
-캐스팅이 실패하면 null을 반환한다.
+캐스팅이 실패하면 null을 반환합니다.
 
 ```kotlin
 val number: Int? = value as? Int
 ```
 
-Java의 instanceof 체크 + 캐스팅을 한 번에 한다. 실패해도 ClassCastException이 안 난다.
+Java의 instanceof 체크 + 캐스팅을 한 번에 합니다. 실패해도 ClassCastException이 안 납니다.
 
 ### Spring에서의 활용: 다형성 처리
 
@@ -168,7 +168,7 @@ class NotificationService {
 
 ## let 함수
 
-nullable 타입을 non-null로 변환해서 블록 안에서 쓸 수 있다.
+nullable 타입을 non-null로 변환해서 블록 안에서 쓸 수 있습니다.
 
 ```kotlin
 val name: String? = "Kotlin"
@@ -177,7 +177,7 @@ name?.let {
 }
 ```
 
-`?.let`은 null이 아닐 때만 블록을 실행한다. 블록 안에서 `it`은 non-null이다.
+`?.let`은 null이 아닐 때만 블록을 실행합니다. 블록 안에서 `it`은 non-null입니다.
 
 ### Spring에서의 활용: 조건부 로직
 
@@ -201,18 +201,18 @@ class OrderService(
 }
 ```
 
-이메일이 null이면 발송을 건너뛴다. if문 없이 깔끔하게 처리된다.
+이메일이 null이면 발송을 건너뜁니다. if문 없이 깔끔하게 처리됩니다.
 
 ## 플랫폼 타입과 Java 호환
 
-Java 코드를 호출하면 "플랫폼 타입"이 된다. 컴파일러가 null 여부를 알 수 없다.
+Java 코드를 호출하면 "플랫폼 타입"이 됩니다. 컴파일러가 null 여부를 알 수 없습니다.
 
 ```kotlin
 // Java 메서드 호출
 val name = javaObject.getName()  // String! (플랫폼 타입)
 ```
 
-`String!`은 "String인지 String?인지 모른다"는 뜻이다. 이때 주의가 필요하다.
+`String!`은 "String인지 String?인지 모른다"는 뜻입니다. 이때 주의가 필요합니다.
 
 ### Spring에서 자주 만나는 상황
 
@@ -236,7 +236,7 @@ class ApiController {
 }
 ```
 
-`@RequestParam`의 required가 true(기본값)면 non-null로 선언해도 안전하다. Spring이 없으면 400을 던지니까. required = false면 nullable로 선언해야 한다.
+`@RequestParam`의 required가 true(기본값)면 non-null로 선언해도 안전합니다. Spring이 없으면 400을 던지니까요. required = false면 nullable로 선언해야 합니다.
 
 ### Entity에서의 Null Safety
 
@@ -258,7 +258,7 @@ class User(
 )
 ```
 
-DB 컬럼의 nullable과 코틀린 타입을 맞춰주면 된다. `nullable = false`인 컬럼은 non-null 타입으로, `nullable = true`인 컬럼은 nullable 타입으로 선언한다.
+DB 컬럼의 nullable과 코틀린 타입을 맞춰주면 됩니다. `nullable = false`인 컬럼은 non-null 타입으로, `nullable = true`인 컬럼은 nullable 타입으로 선언합니다.
 
 ## 실전 패턴 정리
 
@@ -299,7 +299,7 @@ fun sendNotification(user: User) {
 }
 ```
 
-if문으로 null 체크하면 블록 안에서 스마트 캐스트가 된다.
+if문으로 null 체크하면 블록 안에서 스마트 캐스트가 됩니다.
 
 ## 정리
 
@@ -311,5 +311,4 @@ if문으로 null 체크하면 블록 안에서 스마트 캐스트가 된다.
 | `as?` | 안전 캐스팅 | `value as? Int` |
 | `?.let` | null 아닐 때 실행 | `name?.let { ... }` |
 
-Null Safety는 코틀린의 핵심 기능이다. 처음엔 `?`와 `!!`가 번거롭게 느껴질 수 있지만, 익숙해지면 NPE 걱정 없이 코드를 작성할 수 있다. 특히 Spring과 함께 쓰면 더 안전하고 간결한 코드가 된다.
-
+Null Safety는 코틀린의 핵심 기능입니다. 처음엔 `?`와 `!!`가 번거롭게 느껴질 수 있지만, 익숙해지면 NPE 걱정 없이 코드를 작성할 수 있습니다. 특히 Spring과 함께 쓰면 더 안전하고 간결한 코드가 됩니다.
