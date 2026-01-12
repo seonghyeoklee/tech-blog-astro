@@ -2,7 +2,7 @@
 title: 'Redis 자료구조 - 상황에 맞는 선택이 성능을 결정한다'
 description: 'Redis의 핵심 자료구조별 특징과 실무 활용법을 정리했습니다'
 pubDate: 'Jan 11 2025'
-tags: ['Redis', 'Database', 'Cache']
+tags: ['Redis', 'Database']
 series: 'redis-in-practice'
 seriesOrder: 1
 ---
