@@ -10,7 +10,7 @@ const blog = defineCollection({
 			pubDate: z.coerce.date(),
 			updatedDate: z.coerce.date().optional(),
 			heroImage: image().optional(),
-			tags: z.array(z.enum(['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL', 'JPA', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'CS', 'OS', 'Network', 'Retrospective'])).optional(),
+			tags: z.array(z.enum(['Java', 'Kotlin', 'Spring', 'Architecture', 'Database', 'MySQL', 'JPA', 'Redis', 'Kafka', 'Docker', 'Kubernetes', 'AWS', 'CS', 'OS', 'Network', 'Retrospective', 'Open Source'])).optional(),
 			series: z.string().optional(),
 			seriesOrder: z.number().optional(),
 			quiz: z.array(z.object({

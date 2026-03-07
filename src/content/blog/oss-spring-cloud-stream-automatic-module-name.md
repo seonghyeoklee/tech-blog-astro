@@ -2,7 +2,7 @@
 title: 'spring-cloud-stream에 Automatic-Module-Name 추가하기'
 description: 'Jigsaw 모듈 시스템에서 spring-cloud-stream을 사용할 수 없던 문제를 해결한 오픈소스 기여 과정을 정리합니다.'
 pubDate: 2026-03-07
-tags: ['Spring']
+tags: ['Open Source', 'Spring']
 series: 'open-source-contribution'
 seriesOrder: 1
 ---
